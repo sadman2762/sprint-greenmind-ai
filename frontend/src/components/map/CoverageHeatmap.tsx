@@ -3,46 +3,21 @@ import { CircleMarker } from "react-leaflet";
 
 import { cityGrid } from "../../services/gridService";
 import type { Station } from "../../types/station";
-import { findNearestAirStation } from "../../utils/nearestStation";
+import { findNearestStation } from "../../utils/nearestStation";
+import type { SensorTier } from "../../types/budget";
+import { getCoverageBand, isCoverageStation, type CoverageBandId } from "../../utils/mapLegend";
 
 interface CoverageHeatmapProps {
   stations: Station[];
-}
-
-function getCoverageColor(score: number): string {
-  if (score >= 70) {
-    return "#2e7d32";
-  }
-
-  if (score >= 40) {
-    return "#f9a825";
-  }
-
-  return "#d32f2f";
-}
-
-function getCoverageOpacity(score: number): number {
-  if (score >= 70) {
-    return 0.12;
-  }
-
-  if (score >= 40) {
-    return 0.15;
-  }
-
-  return 0.18;
+  category: SensorTier;
+  visibleBands: readonly CoverageBandId[];
 }
 
 const CoverageHeatmap = React.memo(function CoverageHeatmap({
-  stations,
+  stations, category, visibleBands,
 }: CoverageHeatmapProps) {
   const heatmapPoints = useMemo(() => {
-    const airStations = stations.filter(
-      (station) =>
-        station.station_type === 0 &&
-        Number.isFinite(station.lat) &&
-        Number.isFinite(station.lng),
-    );
+    const airStations = stations.filter((station) => isCoverageStation(station, category));
 
     if (airStations.length === 0) {
       return [];
@@ -52,33 +27,24 @@ const CoverageHeatmap = React.memo(function CoverageHeatmap({
     // - Full coverage: radius <= 2.0 km (Green, score >= 70, matches 2000m sensor circles)
     // - Interpolated coverage: 2.0 km < radius <= 4.0 km (Yellow, score 40 - 69)
     // - Unmonitored blind spot: radius > 4.0 km (Red, score < 40)
-    const REFERENCE_COVERAGE_SCALE_KM = 6.67;
 
     return cityGrid
       .map((point) => {
-        const nearest = findNearestAirStation(
+        const nearest = findNearestStation(
           point.lat,
           point.lng,
           airStations,
+          category,
         );
 
         if (nearest.distanceKm === null || !Number.isFinite(nearest.distanceKm)) {
           return null;
         }
 
-        const coverageScore = Math.max(
-          0,
-          Math.min(
-            100,
-            Math.round(
-              100 -
-                (nearest.distanceKm / REFERENCE_COVERAGE_SCALE_KM) * 100,
-            ),
-          ),
-        );
-
-        const color = getCoverageColor(coverageScore);
-        const fillOpacity = getCoverageOpacity(coverageScore);
+        const band = getCoverageBand(nearest.distanceKm, category);
+        if (!band || !visibleBands.includes(band.id)) return null;
+        const color = band.color;
+        const fillOpacity = band.opacity;
 
         return {
           id: point.id,
@@ -89,7 +55,7 @@ const CoverageHeatmap = React.memo(function CoverageHeatmap({
         };
       })
       .filter((p): p is NonNullable<typeof p> => p !== null);
-  }, [stations]);
+  }, [stations, category, visibleBands]);
 
   if (heatmapPoints.length === 0) {
     return null;

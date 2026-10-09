@@ -1,214 +1,78 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Box,
-  Grid,
-} from "@mui/material";
-import {
-  Air as AirIcon,
-  VolumeUp as VolumeIcon,
-  WaterDrop as WaterIcon,
-} from "@mui/icons-material";
-
+import { Alert, Box, Button, Grid, LinearProgress, Stack, Typography } from "@mui/material";
+import { Air, VolumeUp, WaterDrop } from "@mui/icons-material";
 import CitizenHealthHero from "../../components/dashboard/CitizenHealthHero";
 import VitalSignCard from "../../components/dashboard/VitalSignCard";
 import DashboardCharts from "../../components/dashboard/DashboardCharts";
 import CitizenGlossaryDialog from "../../components/dashboard/CitizenGlossaryDialog";
-
 import { getStations } from "../../services/stationService";
-import {
-  getAiCityAnalytics,
-  type AiCityAnalyticsResponse,
-} from "../../services/aiAnalyticsService";
+import { getAiCityAnalytics, type AiCityAnalyticsResponse } from "../../services/aiAnalyticsService";
 import { calculateCoverageMetrics } from "../../utils/calculateCoverageMetrics";
+import { getDashboardMetrics, measurement } from "../../utils/dashboardMetrics";
 import type { Station } from "../../types/station";
 
+interface DashboardData {
+  stations: Station[];
+  analytics: AiCityAnalyticsResponse | null;
+  stationsAvailable: boolean;
+  errors: string[];
+}
+
 export default function Dashboard() {
-  const [stations, setStations] = useState<Station[]>([]);
-  const [aiAnalytics, setAiAnalytics] = useState<AiCityAnalyticsResponse | null>(null);
-  const [error, setError] = useState("");
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
+  const loading = data === null;
 
   useEffect(() => {
-    async function loadDashboardData() {
-      setError("");
-      try {
-        const [stationData, analyticsData] = await Promise.all([
-          getStations(),
-          getAiCityAnalytics().catch(() => null),
-        ]);
-        setStations(stationData);
-        if (analyticsData) {
-          setAiAnalytics(analyticsData);
-        }
-      } catch {
-        setError("Could not load official dashboard telemetry.");
-      }
+    const controller = new AbortController();
+    async function load() {
+      const [stations, analytics] = await Promise.allSettled([
+        getStations(controller.signal), getAiCityAnalytics(controller.signal),
+      ]);
+      if (controller.signal.aborted) return;
+      setData({
+        stations: stations.status === "fulfilled" ? stations.value : [],
+        analytics: analytics.status === "fulfilled" ? analytics.value : null,
+        stationsAvailable: stations.status === "fulfilled",
+        errors: [
+          ...(stations.status === "rejected" ? ["Station readings could not be loaded."] : []),
+          ...(analytics.status === "rejected" ? ["Environmental summaries and district estimates could not be loaded."] : []),
+        ],
+      });
     }
-    loadDashboardData();
-  }, []);
+    void load();
+    return () => controller.abort();
+  }, [attempt]);
 
-  const airStations = useMemo(
-    () => stations.filter((station) => station.station_type === 0),
-    [stations],
-  );
-
-  const validPm25Stations = useMemo(
-    () =>
-      airStations.filter(
-        (station) =>
-          station.pm25 !== undefined &&
-          station.pm25 !== null &&
-          Number.isFinite(station.pm25),
-      ),
-    [airStations],
-  );
-
-  // Dynamic values powered by Machine Learning and official dataset telemetry
-  const averagePm25 = useMemo(() => {
-    if (aiAnalytics?.vitalSigns?.airQuality?.averagePm25 !== undefined) {
-      return aiAnalytics.vitalSigns.airQuality.averagePm25;
-    }
-    if (validPm25Stations.length === 0) {
-      return 7.91; // True Green Sentinel dataset mean
-    }
-    const total = validPm25Stations.reduce(
-      (sum, station) => sum + (station.pm25 ?? 0),
-      0,
-    );
-    return total / validPm25Stations.length;
-  }, [aiAnalytics, validPm25Stations]);
-
-  const daytimeNoiseDb = aiAnalytics?.vitalSigns?.urbanAcoustics?.daytimeNoiseDb ?? 56.57;
-  const nighttimeNoiseDb = aiAnalytics?.vitalSigns?.urbanAcoustics?.nighttimeNoiseDb ?? 48.92;
-  const waterTemperatureC = aiAnalytics?.vitalSigns?.groundwater?.temperatureC ?? 13.54;
-
-  const groundwaterStationCount = aiAnalytics?.telemetry?.groundwaterStationCount ?? 15;
-
-
-
-  // Dynamic geographical coverage calculation from actual sensor grid
-  const coverageMetrics = useMemo(
-    () => calculateCoverageMetrics(stations),
-    [stations],
-  );
-
-  const airQualityProgress = aiAnalytics?.vitalSigns?.airQuality?.progressPercent ??
-    Math.min(100, Math.max(0, Math.round((averagePm25 / 35) * 100)));
-  const noiseProgress = aiAnalytics?.vitalSigns?.urbanAcoustics?.progressPercent ??
-    Math.min(100, Math.max(0, Math.round(((daytimeNoiseDb - 30) / 50) * 100)));
-  const waterProgress = aiAnalytics?.vitalSigns?.groundwater?.progressPercent ??
-    Math.min(100, Math.max(0, Math.round(((waterTemperatureC - 5) / 20) * 100)));
-
-  const healthScore = aiAnalytics?.cityHealth?.healthScore ?? 89;
-  const vitalityLabel = aiAnalytics?.cityHealth?.vitalityLabel;
-  const vitalityColor = aiAnalytics?.cityHealth?.vitalityColor;
-  const vitalityBg = aiAnalytics?.cityHealth?.vitalityBg;
-  const headline = aiAnalytics?.cityHealth?.headline;
-  const citizenTip = aiAnalytics?.cityHealth?.citizenTip;
-  const statusSummaryText = aiAnalytics?.cityHealth?.statusSummary;
+  const metrics = useMemo(() => getDashboardMetrics(data?.stations ?? [], data?.analytics ?? null), [data]);
+  const coverage = useMemo(() => data?.stationsAvailable ? calculateCoverageMetrics(data.stations).coveragePercentage : null, [data]);
+  const cards = [
+    { category: "Air quality", icon: <Air />, value: metrics.averagePm25, unit: "µg/m³", detail: `PM2.5 · ${metrics.readingCount} valid station readings`, color: "#38785b", bg: "#edf5ef" },
+    { category: "Urban acoustics", icon: <VolumeUp />, value: metrics.daytimeNoise, unit: "dB", detail: `Daytime summary · Night: ${measurement(metrics.nighttimeNoise, "dB")}`, color: "#7c3aed", bg: "#f5f3ff" },
+    { category: "Groundwater", icon: <WaterDrop />, value: metrics.temperature, unit: "°C", detail: "Temperature summary · Does not establish water quality", color: "#2563eb", bg: "#eff6ff" },
+  ];
 
   return (
-    <Box sx={{ pb: 6 }}>
-      {/* 1. City Pulse Hero Banner with Dynamic AI Analysis */}
-      <CitizenHealthHero
-        onOpenGlossary={() => setGlossaryOpen(true)}
-        healthScore={healthScore}
-        averagePm25={averagePm25}
-        daytimeNoise={daytimeNoiseDb}
-        vitalityLabel={vitalityLabel}
-        vitalityColor={vitalityColor}
-        vitalityBg={vitalityBg}
-        headline={headline}
-        citizenTip={citizenTip}
-        statusSummaryText={statusSummaryText}
-      />
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2.5 }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* 2. The Three Environmental Vital Signs with Real Predictions */}
+    <Box sx={{ pb: 4, minWidth: 0 }}>
+      <CitizenHealthHero healthScore={metrics.healthScore} loading={loading} onOpenGlossary={() => setGlossaryOpen(true)} />
+      {loading && <Box role="status" sx={{ mb: 3 }}><Typography variant="body2" sx={{ mb: 1 }}>Loading dashboard data…</Typography><LinearProgress aria-label="Loading dashboard data" /></Box>}
+      {data && data.errors.length > 0 && <Alert severity={data.errors.length === 2 ? "error" : "warning"} sx={{ mb: 3 }} action={<Button color="inherit" onClick={() => { setData(null); setAttempt((value) => value + 1); }}>Retry</Button>}>{data.errors.join(" ")}</Alert>}
+      {data?.stationsAvailable && data.stations.length === 0 && <Alert severity="info" sx={{ mb: 3 }}>The station feed returned no stations.</Alert>}
       <Grid container spacing={2.5}>
-        {/* Air Quality */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <VitalSignCard
-            category="Air Quality"
-            icon={<AirIcon sx={{ fontSize: 22 }} />}
-            statusBadge={{
-              label: aiAnalytics?.vitalSigns?.airQuality?.statusLabel || (averagePm25 <= 15 ? "Clean & Fresh" : "Moderate"),
-              color: "#059669",
-              bg: "#ecfdf5",
-            }}
-            humanValue={`${averagePm25.toFixed(1)} µg/m³`}
-            technicalValue={`${averagePm25.toFixed(2)} µg/m³ PM2.5`}
-            progressPercent={airQualityProgress}
-            progressColor="#10b981"
-            scaleLabels={["0 Fresh", "15 WHO Target", "35 Alert"]}
-            onInfoClick={() => setGlossaryOpen(true)}
-          />
-        </Grid>
-
-        {/* Urban Acoustics */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <VitalSignCard
-            category="Urban Acoustics"
-            icon={<VolumeIcon sx={{ fontSize: 22 }} />}
-            statusBadge={{
-              label: aiAnalytics?.vitalSigns?.urbanAcoustics?.statusLabel || (daytimeNoiseDb <= 60 ? "Comfortable" : "Elevated"),
-              color: "#7c3aed",
-              bg: "#f5f3ff",
-            }}
-            humanValue={`${daytimeNoiseDb.toFixed(1)} dB`}
-            technicalValue={`${daytimeNoiseDb.toFixed(1)} dB Day / ${nighttimeNoiseDb.toFixed(1)} dB Night`}
-            progressPercent={noiseProgress}
-            progressColor="#8b5cf6"
-            scaleLabels={["30 Whisper", "56 Debrecen Avg", "85 Heavy Traffic"]}
-            onInfoClick={() => setGlossaryOpen(true)}
-          />
-        </Grid>
-
-        {/* Groundwater & Nature */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <VitalSignCard
-            category="Groundwater"
-            icon={<WaterIcon sx={{ fontSize: 22 }} />}
-            statusBadge={{
-              label: aiAnalytics?.vitalSigns?.groundwater?.statusLabel || "Healthy & Stable",
-              color: "#2563eb",
-              bg: "#eff6ff",
-            }}
-            humanValue={`${waterTemperatureC.toFixed(1)}°C`}
-            technicalValue={`${waterTemperatureC.toFixed(1)}°C (${groundwaterStationCount} wells)`}
-            progressPercent={waterProgress}
-            progressColor="#3b82f6"
-            scaleLabels={["5°C Cold", "13.5°C Optimal", "25°C Warm"]}
-            onInfoClick={() => setGlossaryOpen(true)}
-          />
-        </Grid>
+        {cards.map((card) => <Grid key={card.category} size={{ xs: 12, md: 4 }}>
+          <VitalSignCard category={card.category} icon={card.icon}
+            statusBadge={{ label: loading ? "Loading" : card.value === null ? "No data" : card.category === "Air quality" ? "Station mean" : "Dataset summary", color: card.color, bg: card.bg }}
+            humanValue={loading ? "—" : measurement(card.value, card.unit)} technicalValue={card.detail}
+            onInfoClick={() => setGlossaryOpen(true)} />
+        </Grid>)}
       </Grid>
-
-
-
-      {/* 4. Visual Graphs & Charts (Recharts) with Live Machine Learning Predictions */}
-      <DashboardCharts
-        averagePm25={averagePm25}
-        daytimeNoise={daytimeNoiseDb}
-        nighttimeNoise={nighttimeNoiseDb}
-        stationCount={stations.length}
-        districtProfiles={aiAnalytics?.districtProfiles}
-        coveragePercentage={coverageMetrics.coveragePercentage}
-      />
-
-
-
-      {/* 6. Citizen Glossary Modal Dialog */}
-      <CitizenGlossaryDialog
-        open={glossaryOpen}
-        onClose={() => setGlossaryOpen(false)}
-      />
+      <Stack spacing={0.5} sx={{ mt: 2 }}>
+        <Typography variant="caption" color="text.secondary">Observation periods vary by source and are not supplied for all summaries. A dashboard refresh does not imply a new observation.</Typography>
+        <Typography variant="caption" color="text.secondary">Noise, groundwater and model outputs come from the analytics service, which can include assumed values. They require source validation before operational decisions.</Typography>
+      </Stack>
+      <DashboardCharts districtProfiles={data?.analytics?.districtProfiles} coveragePercentage={coverage} loading={loading} />
+      <CitizenGlossaryDialog open={glossaryOpen} onClose={() => setGlossaryOpen(false)} />
     </Box>
   );
 }

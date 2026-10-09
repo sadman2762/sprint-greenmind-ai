@@ -14,11 +14,8 @@ interface TrafficResponse {
   locations: TrafficLocation[];
 }
 
-const API =
-  import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-
-export async function getTrafficLocations(): Promise<TrafficLocation[]> {
-  const response = await fetch(`${API}/traffic`);
+export async function getTrafficLocations(signal?: AbortSignal): Promise<TrafficLocation[]> {
+  const response = await fetch("/traffic", { signal });
 
   if (!response.ok) {
     throw new Error("Failed to load DKV traffic locations.");

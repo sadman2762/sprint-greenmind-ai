@@ -35,7 +35,7 @@ export default function CitizenGlossaryDialog({
       simpleAnswer:
         "Microscopic airborne particles smaller than 2.5 microns (30 times thinner than a human hair).",
       whyItMatters:
-        "They come from car exhaust, wood smoke, and road dust. Lower is better: below 15 µg/m³ is considered clean and healthy by the World Health Organization (WHO).",
+        "Particles can come from combustion and road dust. Interpreting health guidance requires the matching averaging period; a station snapshot does not establish a safe exposure level.",
       badgeColor: "#10b981",
       badgeBg: "#ecfdf5",
     },
@@ -45,7 +45,7 @@ export default function CitizenGlossaryDialog({
       simpleAnswer:
         "The standard unit for loudness. Every 10 dB jump sounds roughly twice as loud to human ears.",
       whyItMatters:
-        "40 dB is quiet like a library; 55-60 dB is a friendly conversation; 75+ dB is busy traffic. Keeping residential night sound under 50 dB protects restful sleep.",
+        "Noise effects depend on duration, time of day and the measurement method. District values here are estimates, not evidence of compliance with a noise standard.",
       badgeColor: "#8b5cf6",
       badgeBg: "#f5f3ff",
     },
@@ -55,7 +55,7 @@ export default function CitizenGlossaryDialog({
       simpleAnswer:
         "The natural water stored deep beneath Debrecen's soil that feeds plants, trees, and thermal baths.",
       whyItMatters:
-        "Stable underground water temperature (~12-14°C) means underground aquifers are insulated from extreme surface weather and industrial runoff.",
+        "Temperature describes one property of groundwater. It cannot establish chemical quality, absence of contamination or suitability for drinking.",
       badgeColor: "#3b82f6",
       badgeBg: "#eff6ff",
     },
@@ -65,7 +65,7 @@ export default function CitizenGlossaryDialog({
       simpleAnswer:
         "A neighborhood or park in the city that currently does not have a nearby sensor station.",
       whyItMatters:
-        "Without sensors, cities cannot be sure if pollution is building up. GreenMind AI locates these blind spots so the city knows exactly where to install the next sensors.",
+        "The coverage preview counts grid points near air stations using a 2 km planning radius. Distance alone cannot establish environmental representativeness.",
       badgeColor: "#f59e0b",
       badgeBg: "#fffbeb",
     },
@@ -75,7 +75,7 @@ export default function CitizenGlossaryDialog({
       simpleAnswer:
         "An intelligent system developed for Debrecen that combines official Green Sentinel data and public transport routes.",
       whyItMatters:
-        "Instead of guessing, the AI mathematically evaluates every street corner and recommends the highest-impact locations for clean, sustainable urban living.",
+        "The system scores a defined set of candidate locations using environmental and coverage assumptions. Recommendations require review of feasible sites and model limitations.",
       badgeColor: "#0f766e",
       badgeBg: "#e6fffa",
     },

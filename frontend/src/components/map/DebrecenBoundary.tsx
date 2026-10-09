@@ -1,16 +1,17 @@
 import React from "react";
 import { GeoJSON } from "react-leaflet";
 import boundary from "../../data/debrecenBoundary.json";
+import { BOUNDARY_COLOR } from "../../utils/mapLegend";
 
 const DebrecenBoundary = React.memo(function DebrecenBoundary() {
   return (
     <GeoJSON
       data={boundary as GeoJSON.GeoJsonObject}
       style={{
-        color: "#1565c0",
+        color: BOUNDARY_COLOR,
         weight: 3,
         opacity: 1,
-        fillColor: "#1565c0",
+        fillColor: BOUNDARY_COLOR,
         fillOpacity: 0.05,
       }}
     />

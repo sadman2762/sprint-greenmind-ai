@@ -1,24 +1,26 @@
 import type { Station } from "../types/station";
-import { calculateDistanceKm } from "./distance";
+import { calculateDistanceKm } from "./distance.ts";
+import { isCoverageStation } from "./mapLegend.ts";
+import type { SensorTier } from "../types/budget";
 
 export interface NearestStationResult {
   station: Station | null;
   distanceKm: number | null;
 }
 
-export function findNearestAirStation(
+export function findNearestAirStation(latitude: number, longitude: number, stations: Station[]): NearestStationResult {
+  return findNearestStation(latitude, longitude, stations, "air");
+}
+
+export function findNearestStation(
   latitude: number,
   longitude: number,
   stations: Station[],
+  category: SensorTier,
 ): NearestStationResult {
-  const airStations = stations.filter(
-    (station) =>
-      station.station_type === 0 &&
-      Number.isFinite(station.lat) &&
-      Number.isFinite(station.lng),
-  );
+  const compatibleStations = stations.filter((station) => isCoverageStation(station, category));
 
-  if (airStations.length === 0) {
+  if (compatibleStations.length === 0) {
     return {
       station: null,
       distanceKm: null,
@@ -28,7 +30,7 @@ export function findNearestAirStation(
   let nearestStation: Station | null = null;
   let nearestDistance: number | null = null;
 
-  for (const station of airStations) {
+  for (const station of compatibleStations) {
     const distance = calculateDistanceKm(
       latitude,
       longitude,

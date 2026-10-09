@@ -1,0 +1,87 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { test } from "node:test";
+import { chromium } from "playwright";
+
+const origin = process.env.MAP_TEST_URL ?? "http://127.0.0.1:5173";
+const fixture = JSON.parse(await readFile(new URL("./jointPlan.fixture.json", import.meta.url), "utf8"));
+
+test("joint planner recovers, shows each step, compares on one map, exports and resets", async () => {
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL ?? "chromium", headless: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  let fail = true;
+  try {
+    await page.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === "/api/plans/joint") {
+        assert.equal(route.request().postDataJSON().stationCount, 3);
+        await route.fulfill(fail ? { status: 422, json: { detail: "Synthetic planning failure" } } : { json: fixture });
+      } else if (url.pathname === "/api/official-stations/") await route.fulfill({ json: { stations: [{ id: 1, name: "Synthetic existing air station", lat: 47.53, lng: 21.62, station_type: 0, pm25: 12 }] } });
+      else if (url.pathname === "/api/plans/coverage") await route.fulfill({ json: { installed: fixture.existingMetrics, chosen: fixture.existingMetrics, areaKm2: fixture.studyArea.areaKm2 } });
+      else if (url.pathname === "/api/geocoding/reverse") await route.fulfill({ json: { displayName: "Synthetic test address", address: { road: "Synthetic test road" } } });
+      else if (url.pathname === "/traffic") await route.fulfill({ json: { locations: [] } });
+      else if (url.pathname.includes("/api/")) await route.fulfill({ json: { orders: [], available: false } });
+      else if (url.origin === origin) await route.continue();
+      else await route.abort();
+    });
+    await page.goto(`${origin}/recommendations`);
+    await page.getByRole("region", { name: "Monitoring map and legend" }).getByRole("button", { name: "Air coverage", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Gap coverage band" }).waitFor();
+    assert.equal(await page.locator(".leaflet-container").count(), 1);
+    await page.getByRole("button", { name: "Suggest 3 together", exact: true }).click();
+    await page.getByText("Synthetic planning failure").waitFor();
+    fail = false;
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await page.getByRole("heading", { name: /^3 suggestions/ }).waitFor();
+    assert.equal(await page.getByRole("table", { name: "Candidate ranking" }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Baseline", exact: true }).count(), 0);
+    assert.equal(await page.locator(".leaflet-container").count(), 1);
+    assert.equal(await page.locator(".joint-plan-marker").count(), 3);
+    await page.getByRole("button", { name: "Before · installed only", exact: true }).click();
+    assert.equal(await page.locator(".joint-plan-marker").count(), 0);
+    await page.getByRole("button", { name: "After · chosen + suggested", exact: true }).click();
+    assert.equal(await page.locator(".joint-plan-marker").count(), 3);
+    await page.getByRole("button", { name: "Case-study details", exact: true }).click();
+    await page.getByText("Compare the networks", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Existing", exact: true }).click();
+    assert.equal(await page.locator(".joint-plan-marker").count(), 0);
+    await page.getByRole("button", { name: /^Step 1/ }).click();
+    assert.equal(await page.locator(".joint-plan-marker").count(), 1);
+    await page.getByRole("heading", { name: "Ranking after this selection" }).waitFor();
+    const comparisonMap = page.getByRole("region", { name: "Plan comparison map" });
+    const centerBefore = await comparisonMap.locator(".leaflet-map-pane").getAttribute("style");
+    await page.getByRole("button", { name: "Both", exact: true }).click();
+    assert.equal(await page.locator(".joint-plan-marker").count(), 4);
+    assert.equal(await comparisonMap.locator(".leaflet-map-pane").getAttribute("style"), centerBefore);
+    await page.getByRole("button", { name: /^Step 3/ }).click();
+    await page.getByRole("button", { name: "Hide case-study details", exact: true }).click();
+    assert.equal(await page.locator(".joint-plan-marker").count(), 3);
+    assert.equal(await page.getByRole("table", { name: "Candidate ranking" }).count(), 0);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: "/private/tmp/greenmind-joint-planner-desktop.png", fullPage: true });
+    await page.getByRole("button", { name: /^Location basket/ }).click();
+    await page.getByRole("heading", { name: "Location basket", exact: true }).waitFor();
+    await page.getByText("Synthetic test road", { exact: true }).first().waitFor();
+    const downloadEvent = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download placement plan" }).first().click();
+    const download = await downloadEvent;
+    assert.equal(download.suggestedFilename(), "greenmind-joint-plan.md");
+    const path = await download.path();
+    assert.ok(path);
+    const content = await readFile(path, "utf8");
+    assert.ok(content.includes(fixture.datasetVersion));
+    assert.ok(content.includes(fixture.jointPlan.metrics.addedKm2.toFixed(2)));
+    await page.getByRole("button", { name: "Close location basket", exact: true }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: "/private/tmp/greenmind-joint-planner-mobile.png", fullPage: true });
+    await page.getByRole("button", { name: /^Location basket/ }).click();
+    await page.getByRole("button", { name: "Discard suggestions", exact: true }).click();
+    assert.equal(await page.locator(".joint-plan-marker").count(), 0);
+    assert.deepEqual(errors, []);
+    assert.equal(await page.locator(".leaflet-container").count(), 1);
+  } finally { await browser.close(); }
+});

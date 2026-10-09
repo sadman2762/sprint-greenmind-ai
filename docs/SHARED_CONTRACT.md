@@ -20,6 +20,8 @@ The primary demonstration is one repeatable workflow: existing network -> indepe
 
 ## Proposed API: agree before implementing
 
+An air-only case-study pilot is now described in [JOINT_PLANNER.md](JOINT_PLANNER.md), with its implemented `1.0-air` request/response contract. The broader multi-category proposal below remains future work; its category weights and feasible-water-site rules are not implemented by the pilot.
+
 This is a proposal, not an endpoint that already exists. Before implementation, agree on exact types, nullability, error responses, and a synthetic example response.
 
 `POST /api/plans/joint`

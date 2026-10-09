@@ -6,10 +6,10 @@ interface OfficialStationApiResponse {
   stations: Station[];
 }
 
-const API_URL = "http://localhost:8000/api/official-stations/";
+const API_URL = "/api/official-stations/";
 
-export async function getStations(): Promise<Station[]> {
-  const response = await fetch(API_URL);
+export async function getStations(signal?: AbortSignal): Promise<Station[]> {
+  const response = await fetch(API_URL, { signal });
 
   if (!response.ok) {
     throw new Error(
@@ -18,6 +18,10 @@ export async function getStations(): Promise<Station[]> {
   }
 
   const data: OfficialStationApiResponse = await response.json();
+
+  if (!Array.isArray(data.stations)) {
+    throw new Error("Invalid station response");
+  }
 
   return data.stations;
 }
