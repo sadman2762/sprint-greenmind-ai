@@ -1,3 +1,4 @@
+import { useMediaQuery } from "@mui/material";
 import { useEffect, useEffectEvent } from "react";
 import L from "leaflet";
 import { useMap } from "react-leaflet";
@@ -7,6 +8,7 @@ import type { Station } from "../../types/station";
 
 export default function MapBoundsController({ stations, resetStations = stations, resetKey, focusLocation }: { stations: Station[]; resetStations?: Station[]; resetKey: number; focusLocation?: { lat: number; lng: number; token: number } }) {
   const map = useMap();
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const getResetStations = useEffectEvent(() => resetStations);
 
   useEffect(() => {
@@ -30,8 +32,12 @@ export default function MapBoundsController({ stations, resetStations = stations
   }, [map, stations, resetKey]);
 
   useEffect(() => {
-    if (focusLocation) map.setView([focusLocation.lat, focusLocation.lng], 14, { animate: false });
-  }, [map, focusLocation]);
+    if (focusLocation) {
+      map.stop();
+      if (reducedMotion) map.setView([focusLocation.lat, focusLocation.lng], 14, { animate: false });
+      else map.flyTo([focusLocation.lat, focusLocation.lng], 14, { duration: 0.85 });
+    }
+  }, [map, focusLocation, reducedMotion]);
 
   useEffect(() => {
     let frame = 0;

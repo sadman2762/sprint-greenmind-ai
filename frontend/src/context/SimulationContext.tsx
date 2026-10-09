@@ -29,7 +29,7 @@ interface SimulationContextType {
   ) => void;
 
   deployOptimizedPlan: (stations: OptimizedStation[]) => void;
-  applySuggestedLocations: (locations: { id: string; lat: number; lng: number }[]) => void;
+  applySuggestedLocations: (locations: { id: string; lat: number; lng: number; category?: "air" | "noise"; radiusKm?: number }[]) => { id: number; category: SensorTier; radiusKm?: number }[];
 
   addCustomPin: (
     lat: number,
@@ -272,21 +272,23 @@ export function SimulationProvider({
     setSimulatedStations(newSimulatedStations);
   }
 
-  function applySuggestedLocations(locations: { id: string; lat: number; lng: number }[]) {
-    const seed = Date.now();
-    setSimulatedStations(previous => {
-      const result = [...previous];
-      for (const [index, location] of locations.entries()) {
-        if (result.some(s => Math.abs(s.lat - location.lat) < 1e-6 && Math.abs(s.lng - location.lng) < 1e-6)) continue;
-        const id = seed + index;
-        result.push({ id, lat: location.lat, lng: location.lng, name: `Suggested air sensor ${result.filter(s => !s.isCustom).length + 1}`,
-          station_type: 0, sensorTier: "air", isCustom: false,
-          recommendation: createCustomRecommendation(location.lat, location.lng, [], id),
-          tierName: TIER_CONFIGS.air.name, tierBadge: TIER_CONFIGS.air.badge,
-          unitCost: TIER_CONFIGS.air.unitCost, annualOm: TIER_CONFIGS.air.annualOm });
-      }
-      return result;
-    });
+  function applySuggestedLocations(locations: { id: string; lat: number; lng: number; category?: "air" | "noise"; radiusKm?: number }[]) {
+    const seed = Math.max(Date.now(), ...simulatedStations.map(s => s.id + 1));
+    const added: SimulatedStation[] = [];
+    const ranges: { id: number; category: SensorTier; radiusKm?: number }[] = [];
+    for (const [index, location] of locations.entries()) {
+      const category = location.category ?? "air";
+      const config = TIER_CONFIGS[category];
+      if ([...simulatedStations, ...added].some(s => (s.sensorTier ?? "air") === category && Math.abs(s.lat - location.lat) < 1e-6 && Math.abs(s.lng - location.lng) < 1e-6)) continue;
+      const id = seed + index;
+      added.push({ id, lat: location.lat, lng: location.lng, name: `Suggested ${category} sensor ${simulatedStations.filter(s => !s.isCustom).length + added.length + 1}`,
+        station_type: category === "noise" ? 2 : 0, sensorTier: category, isCustom: false,
+        recommendation: createCustomRecommendation(location.lat, location.lng, [], id),
+        tierName: config.name, tierBadge: config.badge, unitCost: config.unitCost, annualOm: config.annualOm });
+      ranges.push({ id, category, radiusKm: location.radiusKm });
+    }
+    setSimulatedStations(previous => [...previous, ...added.filter(s => !previous.some(p => p.id === s.id || ((p.sensorTier ?? "air") === s.sensorTier && Math.abs(p.lat - s.lat) < 1e-6 && Math.abs(p.lng - s.lng) < 1e-6)))]);
+    return ranges;
   }
 
   function clearSimulation() {

@@ -1,3 +1,4 @@
+import { useRanges } from "../../context/rangeState";
 import { useState } from "react";
 import { Alert, Box, Button, Chip, Divider, Drawer, IconButton, Stack, Tab, Tabs, TextField, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -7,14 +8,15 @@ import { getStationCategory } from "../../utils/mapLegend";
 import { TIER_CONFIGS } from "../../types/budget";
 import type { JointPlan } from "../../services/jointPlanService";
 
-export default function LocationBasket({ open, onClose, plan, onShow, onDownload, onDiscard }: {
-  open: boolean; onClose: () => void; plan: JointPlan | null;
+export default function LocationBasket({ open, onClose, plan, onShow, onDownload, onDiscard, busy = false }: {
+  busy?: boolean; open: boolean; onClose: () => void; plan: JointPlan | null;
   onShow: (lat: number, lng: number) => void; onDownload: () => void; onDiscard: () => void;
 }) {
+  const { setOverride } = useRanges();
   const { simulatedStations, applySuggestedLocations, removeSimulatedStation } = useSimulation();
   const [section, setSection] = useState<"suggested" | "chosen">(plan ? "suggested" : "chosen");
   const [query, setQuery] = useState("");
-  const items = section === "suggested" ? (plan?.steps ?? []).map((s, index) => ({ key: s.station.id, name: `Suggestion ${index + 1}`, lat: s.station.lat, lng: s.station.lng, category: "air", gain: s.marginalKm2, overlap: s.overlapFraction, id: null })) : simulatedStations.map(s => ({ key: String(s.id), id: s.id, name: s.name, lat: s.lat, lng: s.lng, category: getStationCategory(s) ?? "air", gain: null, overlap: null }));
+  const items = section === "suggested" ? (plan?.steps ?? []).map((s, index) => ({ key: s.station.id, name: `Suggestion ${index + 1}`, lat: s.station.lat, lng: s.station.lng, category: s.station.category, gain: s.marginalKm2, overlap: s.overlapFraction, id: null })) : simulatedStations.map(s => ({ key: String(s.id), id: s.id, name: s.name, lat: s.lat, lng: s.lng, category: getStationCategory(s) ?? "air", gain: null, overlap: null }));
   const visible = items.filter(item => `${item.name} ${item.category} ${item.lat} ${item.lng}`.toLowerCase().includes(query.toLowerCase()));
   return <Drawer sx={{ zIndex: theme => theme.zIndex.tooltip + 1 }} anchor="right" open={open} onClose={onClose} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 440 }, maxWidth: "100%" } } }}>
     <Stack sx={{ height: "100%" }}>
@@ -36,12 +38,12 @@ export default function LocationBasket({ open, onClose, plan, onShow, onDownload
       </Box>
       <Stack spacing={1} sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
         {section === "suggested" && plan && <>
-          <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography variant="body2">{plan.steps.length} sensor{plan.steps.length === 1 ? "" : "s"} · +{plan.jointPlan.metrics.addedKm2.toFixed(2)} km²</Typography><Typography variant="body2">€{(plan.steps.length * TIER_CONFIGS.air.unitCost).toLocaleString()} est.</Typography></Stack>
+          <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography variant="body2">{plan.steps.length} sensor{plan.steps.length === 1 ? "" : "s"} · +{plan.jointPlan.metrics.addedKm2.toFixed(2)} km²</Typography><Typography variant="body2">€{(plan.steps.length * TIER_CONFIGS[plan.planningCategory ?? "air"].unitCost).toLocaleString()} est.</Typography></Stack>
           {plan.steps.every(s => s.overlapFraction >= 0.8) && <Alert severity="warning" sx={{ py: 0 }}>Small extra reach. Review the cost before adding more.</Alert>}
-          <Button variant="contained" onClick={() => { onClose(); applySuggestedLocations(plan.jointPlan.stations); }}>Apply {plan.steps.length === 1 ? "this suggestion" : `these ${plan.steps.length} suggestions`}</Button>
-          <Stack direction="row" sx={{ justifyContent: "space-between" }}><Button size="small" onClick={onDownload}>Download placement plan</Button><Button size="small" onClick={() => { onClose(); onDiscard(); }}>Discard suggestions</Button></Stack>
+          <Button variant="contained" disabled={busy} onClick={() => { const added = applySuggestedLocations(plan.jointPlan.stations.map(s => ({ ...s, radiusKm: s.radiusKm ?? plan.studyArea.radiusKm }))); for (const sensor of added) if (sensor.radiusKm !== undefined) setOverride(`${sensor.category}:${sensor.id}`, sensor.radiusKm); onClose(); }}>Apply {plan.steps.length === 1 ? "this suggestion" : `these ${plan.steps.length} suggestions`}</Button>
+          <Stack direction="row" sx={{ justifyContent: "space-between" }}><Button size="small" disabled={busy} onClick={onDownload}>Download placement plan</Button><Button size="small" onClick={() => { onClose(); onDiscard(); }}>Discard suggestions</Button></Stack>
         </>}
-        <Typography variant="caption" color="text.secondary">Nearest mapped addresses · © OpenStreetMap contributors. Estimates use a 2 km air-sensor reach and configured hardware costs.</Typography>
+        <Typography variant="caption" color="text.secondary">Nearest mapped addresses · © OpenStreetMap contributors. Reach and costs are planning assumptions for the selected sensor category.</Typography>
       </Stack>
     </Stack>
   </Drawer>;

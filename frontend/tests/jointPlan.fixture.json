@@ -1,5 +1,6 @@
 {
-  "schemaVersion": "1.0-air",
+  "schemaVersion": "1.2-network",
+  "planningCategory": "air",
   "datasetVersion": "671849d551830990",
   "objectiveVersion": "area-pm25-idw-v1",
   "method": "Deterministic greedy marginal gain; heuristic within the sampled candidate set.",
@@ -796,5 +797,62 @@
     }
   },
   "candidateCount": 401,
-  "elapsedMs": 10.4
+  "elapsedMs": 10.4,
+  "originalPlan": {
+    "status": "available",
+    "source": {
+      "repository": "https://github.com/Sayem-Kabir/greenmind-ai",
+      "commit": "c15c09f694012d8abc75fb252c89a27c3fa4faef",
+      "file": "backend/app/services/recommendation_engine.py",
+      "sha256": "f695f66ab415ae932011e6a831dac1290e9d085781d51cbb9cc81533ada897a3"
+    },
+    "method": "Synthetic original-method fixture",
+    "stations": [
+      {
+        "id": "air-47.479500-21.600000",
+        "lat": 47.4795,
+        "lng": 21.6,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 36",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      },
+      {
+        "id": "air-47.479500-21.611000",
+        "lat": 47.4795,
+        "lng": 21.611,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 37",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      },
+      {
+        "id": "air-47.479500-21.633000",
+        "lat": 47.4795,
+        "lng": 21.633,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 39",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      }
+    ],
+    "metrics": {
+      "coveredKm2": 34.8716566298896,
+      "coveragePercent": 16.94325251467389,
+      "addedKm2": 21.99216596152716,
+      "weightedGain": 29.532337148336463
+    },
+    "steps": [],
+    "warnings": [
+      "Synthetic fixture; not a live Original result."
+    ],
+    "constraintViolations": []
+  },
+  "originalComparison": "Synthetic comparison: Original and Joint are evaluated on the same grid."
 }

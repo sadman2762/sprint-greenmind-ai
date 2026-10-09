@@ -7,6 +7,12 @@ export interface Station {
   lng: number;
 
   station_type: number;
+  scenarioRadiusKm?: number;
+  sensorTier?: "air" | "water" | "noise";
+  daytimeNoise?: number | null;
+  nighttimeNoise?: number | null;
+  periodStart?: string;
+  periodEnd?: string;
 
   stationCode?: string;
   location?: string;

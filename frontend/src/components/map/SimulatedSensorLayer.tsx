@@ -1,3 +1,4 @@
+import { useRanges } from "../../context/rangeState";
 import React from "react";
 import { Circle, Marker, Tooltip } from "react-leaflet";
 import MapFeatureDetails from "./MapFeatureDetails";
@@ -18,6 +19,7 @@ interface SimulatedSensorLayerProps {
 }
 
 const SimulatedSensorLayer = React.memo(function SimulatedSensorLayer({ stations = [], view = "all", showHalos = true }: SimulatedSensorLayerProps) {
+  const { radiusFor } = useRanges();
   const { selection, select } = useMapInspector();
   const {
     simulatedStations,
@@ -36,7 +38,7 @@ const SimulatedSensorLayer = React.memo(function SimulatedSensorLayer({ stations
         const markerColor = tierConfig ? tierConfig.color : "#0284c7";
         const fillColor = tierConfig ? tierConfig.borderColor : "#38bdf8";
         const coverageRadiusMeters = tierConfig
-          ? tierConfig.radiusKm * 1000
+          ? radiusFor(station) * 1000
           : 2000;
 
         const featureId = `simulated-${station.id}`;

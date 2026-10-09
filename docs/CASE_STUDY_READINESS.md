@@ -6,7 +6,7 @@ The handout repeats six core requirements across its goal, implementation and va
 | --- | --- | --- |
 | Recommend 2–3 stations jointly | Deterministic greedy marginal coverage objective; Suggest 2 and Suggest 3 | Show one clean repeatable scenario |
 | Recompute after each virtual placement | `select_network` updates uncovered cells and rankings; one-at-a-time application is included in subsequent requests | Show a candidate losing value after coverage changes |
-| Compare baseline with selected network | Case-study mode shows baseline/recommended/both on one map with matching extents | Explain why the baseline is an evaluation control |
+| Compare baseline with selected network | Original / Joint / Both uses the user-supplied repository at c15c09f; the independent control stays separate | Explain whole-method differences; do not imply the old method lacked reranking |
 | Quantify each new station's benefit | Per-station added km², cumulative union coverage and weighted gain | Lead with km² in the presentation |
 | Demonstrate recommendations change | Overlap regression test; browser checks of three separately applied suggestions | Rehearse the exact three-click story |
 | Explain importance/coverage/redundancy trade-off | Historical-PM2.5 importance, no reward for already covered cells, computed displaced-candidate explanation | Explain one real trade-off in plain language |
@@ -24,4 +24,12 @@ A read-only plan explainer can summarize the selected locations, before/after co
 
 ## Demo recommendation
 
-Show the existing network, generate three locations, compare independent versus joint placement, inspect one changed ranking, then open the basket to show addresses and benefits. Finish with the practical decision: where to investigate installation, how much coverage is expected, and what assumptions must be checked. A concise, reproducible explanation is stronger evidence than an unsupported claim that the system is globally optimal.
+Show the existing network, generate three locations, compare the previous repository method versus Joint, then use the independent control to illustrate reranking, inspect one changed ranking, then open the basket to show addresses and benefits. Finish with the practical decision: where to investigate installation, how much coverage is expected, and what assumptions must be checked. A concise, reproducible explanation is stronger evidence than an unsupported claim that the system is globally optimal.
+
+The user clarified the required Original source after this initial assessment. The historical PDF is not a precise description of the supplied code: the code already implements sequential coverage updates. The new Original adapter preserves that behavior. Default live-data comparison during verification gave approximately 35.63 km² added by Original and 35.62 km² by Joint (three stations, default weight/separation). This is essentially a tie at the grid resolution, not evidence of a large improvement over the old repository. Prior larger gains were against independent top-k control only.
+
+## Latest local extension
+
+Air and noise now have separate planning modes (`1.2-network`), including 1/2/3 suggestions, category-aware application, marginal-step explanations and matching map/coverage state. Noise uses five historical sites and a 1 km assumed radius; it does not establish live monitoring coverage or model sound propagation. Original comparison remains air-only. DKV source quality has been audited, but no DKV metric influences either Joint objective yet. See `NOISE_PLANNING.md`, `DKV_DATA_AUDIT.md` and `PLANNING_SCENARIOS.md`.
+
+Verification: 37 frontend tests, 26 backend tests and production build pass. Full frontend lint retains 22 existing errors and one warning. Changed UI files pass targeted lint; SimulationContext retains its existing lint issues. Browser checks covered noise generation (1/2/3), applying two then suggesting one, category isolation, step display and narrow-screen layout. Temporary viewport override was reset.

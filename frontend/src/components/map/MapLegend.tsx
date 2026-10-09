@@ -16,6 +16,8 @@ const PREFERENCE_KEY = "greenmind.map.legend";
 
 export interface MapLegendProps extends LegendOptions {
   additionalAirPlanCount?: number;
+  additionalPlanCount?: number;
+  additionalPlanCategory?: SensorTier;
   initialMode?: LegendMode;
   onViewChange?: (view: MapView) => void;
   onBandsChange?: (bands: CoverageBandId[]) => void;
@@ -54,7 +56,7 @@ function LegendSwatch({ item }: { item: LegendItem }) {
   );
 }
 
-export default function MapLegend({ initialMode, additionalAirPlanCount = 0, onViewChange, onBandsChange, onShowCoverage, onAddCoveragePin, ...options }: MapLegendProps) {
+export default function MapLegend({ initialMode, additionalAirPlanCount = 0, additionalPlanCount = additionalAirPlanCount, additionalPlanCategory = "air", onViewChange, onBandsChange, onShowCoverage, onAddCoveragePin, ...options }: MapLegendProps) {
   const headingId = useId();
   const [mode, setMode] = useState<LegendMode>(() => initialPreference(initialMode));
   const [infoAnchor, setInfoAnchor] = useState<HTMLElement | null>(null);
@@ -62,12 +64,12 @@ export default function MapLegend({ initialMode, additionalAirPlanCount = 0, onV
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { coverageCategory = "air", visibleBands = ALL_COVERAGE_BANDS } = options;
   const overview = options.overview ?? false;
-  const bands = getCoverageBands(coverageCategory);
+  const bands = getCoverageBands(coverageCategory, options.hasRadiusOverrides ? 1 : options.radiusKm);
   const sections = getLegendSections(options).filter((section) => section.id !== "coverage");
   const coverageInfo = getLegendSections({ ...options, overview: false, showCoverage: true }).find((section) => section.id === "coverage");
-  const networks = getNetworkOverview(options.stations, options.simulatedStations).map((network) => ({ ...network, plannedCount: network.plannedCount + (network.category === "air" ? additionalAirPlanCount : 0) }));
+  const networks = getNetworkOverview(options.stations, options.simulatedStations).map((network) => ({ ...network, plannedCount: network.plannedCount + (network.category === additionalPlanCategory ? additionalPlanCount : 0) }));
   const existingCount = options.stations.filter((station) => isCoverageStation(station, coverageCategory)).length;
-  const plannedCount = options.simulatedStations.filter((station) => isCoverageStation(station, coverageCategory)).length + (coverageCategory === "air" ? additionalAirPlanCount : 0);
+  const plannedCount = options.simulatedStations.filter((station) => isCoverageStation(station, coverageCategory)).length + (coverageCategory === additionalPlanCategory ? additionalPlanCount : 0);
   const expanded = mode === "expanded";
 
   useEffect(() => {
@@ -147,7 +149,7 @@ export default function MapLegend({ initialMode, additionalAirPlanCount = 0, onV
                       <LegendSwatch item={{ label: band.label, color: band.color, symbol: "area" }} /><Typography variant="caption">{band.label}</Typography>
                     </Stack>
                     <Typography variant="caption" color="text.secondary">
-                      {index === 0 ? `≤ ${band.max}` : index === 1 ? `${bands[0].max}–${band.max}` : `> ${bands[1].max}`} km
+                      {index === 0 ? `≤ ${band.max}` : index === 1 ? `${bands[0].max}–${band.max}` : `> ${bands[1].max}`} {options.hasRadiusOverrides ? "× radius" : "km"}
                     </Typography>
                   </Stack>
                 </ToggleButton>

@@ -1,3 +1,4 @@
+import { useRanges } from "../../context/rangeState";
 import React, { useMemo } from "react";
 import { Circle, Marker, Tooltip } from "react-leaflet";
 import MapFeatureDetails from "./MapFeatureDetails";
@@ -19,6 +20,7 @@ interface CustomPinLayerProps {
 
 
 const CustomPinLayer = React.memo(function CustomPinLayer({ stations, view = "all", showHalos = true }: CustomPinLayerProps) {
+  const { radiusFor } = useRanges();
   const { selection, select } = useMapInspector();
   const {
     simulatedStations,
@@ -43,7 +45,7 @@ const CustomPinLayer = React.memo(function CustomPinLayer({ stations, view = "al
 
         const markerColor = tierConfig.color;
         const fillColor = tierConfig.borderColor;
-        const radiusMeters = tierConfig.radiusKm * 1000;
+        const radiusMeters = radiusFor(station) * 1000;
         const featureId = `custom-${station.id}`;
         const icon = createMapMarkerIcon(CATEGORY_MARKERS[tier].color, selection?.id === featureId, 22, CATEGORY_MARKERS[tier].symbol, true, `custom-pin-marker-${tier}`);
 
