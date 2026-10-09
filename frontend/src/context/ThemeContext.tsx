@@ -59,13 +59,13 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
   const tokens = useMemo(() => THEMES[mode] || midnightTheme, [mode]);
 
   const muiTheme = useMemo(() => {
-    const isMid = mode === "midnight";
+    const isMid = false; // The planning workspace uses one consistent light palette.
 
     return createTheme({
       palette: {
         mode: "light", // Keep most parts white as requested!
         primary: {
-          main: isMid ? "#0b1329" : "#0f766e",
+          main: isMid ? "#0b1329" : "#176650",
           dark: isMid ? "#070c1a" : "#042f2e",
           light: isMid ? "#1e293b" : "#14b8a6",
           contrastText: "#ffffff",
@@ -77,18 +77,18 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
           contrastText: isMid ? "#0b1329" : "#ffffff",
         },
         background: {
-          default: isMid ? "#f6f7f9" : "#f5f7f5",
+          default: isMid ? "#f6f7f9" : "#f4f6f3",
           paper: "#ffffff",
         },
         text: {
-          primary: isMid ? "#0f172a" : "#14332d",
-          secondary: isMid ? "#475569" : "#44534f",
+          primary: isMid ? "#0f172a" : "#202b27",
+          secondary: isMid ? "#475569" : "#69766f",
         },
         divider: isMid ? "rgba(15, 23, 42, 0.08)" : "rgba(15, 118, 110, 0.12)",
       },
       typography: {
         fontFamily:
-          '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif',
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
         h4: {
           fontSize: "1.8rem",
           fontWeight: 600,
@@ -108,9 +108,11 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
           fontWeight: 600,
         },
         body1: {
+          fontSize: "0.875rem",
           lineHeight: 1.6,
         },
         body2: {
+          fontSize: "0.8125rem",
           lineHeight: 1.6,
         },
         button: {
@@ -139,7 +141,7 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
         MuiPaper: {
           styleOverrides: {
             root: {
-              borderRadius: 12,
+              borderRadius: 10,
               backgroundImage: "none",
             },
           },
@@ -147,8 +149,8 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
         MuiButton: {
           styleOverrides: {
             root: {
-              borderRadius: 6,
-              minHeight: 36,
+              borderRadius: 8,
+              minHeight: 38,
               transition: "background-color 160ms ease, border-color 160ms ease",
               boxShadow: "none",
               "&:hover": {
@@ -178,7 +180,7 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
         },
       },
     });
-  }, [mode]);
+  }, []);
 
   function toggleTheme() {
     setMode((prev) => (prev === "midnight" ? "classic" : "midnight"));

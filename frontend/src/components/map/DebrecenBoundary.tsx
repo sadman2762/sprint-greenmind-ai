@@ -9,10 +9,10 @@ const DebrecenBoundary = React.memo(function DebrecenBoundary() {
       data={boundary as GeoJSON.GeoJsonObject}
       style={{
         color: BOUNDARY_COLOR,
-        weight: 3,
-        opacity: 1,
+        weight: 1.5,
+        opacity: 0.65,
         fillColor: BOUNDARY_COLOR,
-        fillOpacity: 0.05,
+        fillOpacity: 0,
       }}
     />
   );

@@ -96,7 +96,7 @@ export default function MapLegend({ initialMode, additionalAirPlanCount = 0, onV
         }
       }}
       sx={{
-        position: "absolute", left: theme.spacing(2), bottom: theme.spacing(3), zIndex: 1000,
+        position: "absolute", left: theme.spacing(2), bottom: { xs: theme.spacing(10), md: theme.spacing(3) }, zIndex: 1000,
         width: mode === "hidden" ? "auto" : theme.spacing(39),
         maxWidth: `calc(100% - ${theme.spacing(4)})`, maxHeight: "65%",
         display: "flex", flexDirection: "column", overflow: "hidden",

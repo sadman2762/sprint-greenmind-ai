@@ -65,3 +65,9 @@ Planner browser workflow: `PLAYWRIGHT_CHANNEL=msedge npm run test:planner`.
 - Custom/manual pins no longer generate artificial noise, groundwater, traffic, confidence or pollutant readings. Placement records mark observations unavailable and `placementOnly: true`; neutral numeric fields remain solely for compatibility with the legacy recommendation type. Planned inspectors show no such scores/readings. Costs are explicitly labeled configured budget assumptions, not quotes.
 
 The location basket holds Suggested and Chosen tabs. The main page no longer renders one large card per chosen location. Short street/neighborhood labels expand to full OSM details; Show on map centers the exact pin. The clickable Before/After metrics switch the same map without changing its scale. When every proposed location overlaps prior coverage by at least 80%, the UI highlights small added reach and asks users to review the configured hardware cost. This is a transparent display rule, not cost optimization or an automatic stopping policy.
+
+## Map workspace refactor
+
+The home route and `/recommendations` now open the same focused planner. Former dashboard, budget, health and maintenance routes redirect home; their legacy source remains outside the active app. The active shell has no sidebar navigation or floating Copilot. Desktop uses a 332 px planning panel alongside a full-height map. Mobile uses a map with a planning bottom panel and a separate location basket. Layer switches are in the Layers popover; the legend retains category and distance-band controls. Analytical comparison remains available through Compare methods & results.
+
+Coverage shading is rendered as geographic grid cells rather than fixed-pixel dots; classification still uses the shared distance bands. Basemap tiles are visually muted to improve marker contrast. These presentation changes do not change the backend objective, radius, or coverage metrics.

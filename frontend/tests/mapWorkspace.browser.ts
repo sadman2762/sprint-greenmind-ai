@@ -144,7 +144,9 @@ test("keyboard selection and hiding a selected station layer dismiss details cle
   await marker.focus();
   await page.keyboard.press("Enter");
   await page.getByRole("complementary").waitFor();
+  await page.getByRole("button", { name: "Layers", exact: true }).click();
   await page.getByRole("switch", { name: "Stations", exact: true }).click();
+  await page.keyboard.press("Escape");
   await page.getByRole("complementary").waitFor({ state: "detached" });
 });
 
@@ -154,7 +156,9 @@ test("water and transit points use category-specific inspector content", async (
   const panel = page.getByRole("complementary");
   await panel.getByText("Water measurements are not included in this station response.").waitFor();
   assert.doesNotMatch(await panel.innerText(), /Key Pollutant/);
+  await page.getByRole("button", { name: "Layers", exact: true }).click();
   await page.getByRole("switch", { name: "DKV Transit", exact: true }).click();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Test Transit Stop", exact: true }).click();
   await panel.getByText("Test Transit Stop", { exact: true }).first().waitFor();
   assert.equal(await page.locator(".leaflet-popup").count(), 0);
@@ -182,6 +186,7 @@ test("proposed and custom placements retain controls in the inspector", async ()
 test("mobile inspector docks below the map and expands without horizontal overflow", async () => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Hide map legend" }).click();
+  await page.getByRole("button", { name: "Layers", exact: true }).click();
   await page.getByRole("button", { name: "Reset view" }).click();
   await page.getByRole("button", { name: "Test Air Alpha", exact: true }).click();
   const panel = page.getByRole("complementary");

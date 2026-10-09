@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Card, LinearProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, LinearProgress, Stack, Typography } from "@mui/material";
 import type { JointPlan, JointPlanRequest } from "../../services/jointPlanService";
 
 type Metric = { coveredKm2: number; coveragePercent: number };
@@ -21,18 +21,17 @@ export default function CoverageComparison({ simulation, plan, before, onBeforeC
   if (!data) return <LinearProgress aria-label="Calculating before and after coverage" />;
   const after = plan?.jointPlan.metrics ?? data.chosen;
   const gain = after.coveredKm2 - data.installed.coveredKm2;
-  return <Card variant="outlined" sx={{ p: 1.5 }}>
-    <Stack direction={{ xs: "column", sm: "row" }} sx={{ gap: 1.5, alignItems: { sm: "center" } }}>
-      <Stack direction="row" sx={{ gap: 1, flex: 1 }} aria-label="Before and after coverage">
-        {[{ label: "Before", detail: "Installed sensors", metric: data.installed, value: true, color: "#64748b" }, { label: "After", detail: `${simulation.filter(s => s.category === "air").length} chosen${plan ? ` + ${plan.steps.length} suggested` : ""}`, metric: after, value: false, color: "#6d28d9" }].map(item => <Button key={item.label} aria-label={item.value ? "Before · installed only" : "After · chosen + suggested"} aria-pressed={before === item.value} onClick={() => onBeforeChange(item.value)} variant={before === item.value ? "outlined" : "text"} sx={{ flex: 1, justifyContent: "flex-start", textTransform: "none", px: 1.5, py: 1, borderColor: item.color, bgcolor: before === item.value ? "action.hover" : undefined }}>
-          <Box sx={{ width: "100%", textAlign: "left" }}><Stack direction="row" sx={{ alignItems: "baseline", justifyContent: "space-between", gap: 1 }}><Typography variant="body2">{item.label}</Typography><Typography component="span" variant="h5" sx={{ fontWeight: 600 }}>{item.metric.coveragePercent.toFixed(1)}%</Typography></Stack>
-            <Box sx={{ mt: 0.5, height: 5, bgcolor: "action.hover", borderRadius: 1 }}><Box sx={{ width: `${item.metric.coveragePercent}%`, height: "100%", bgcolor: item.color, borderRadius: 1 }} /></Box>
-            <Typography component="span" variant="caption" color="text.secondary">{item.detail} · {item.metric.coveredKm2.toFixed(1)} km²</Typography>
-          </Box>
-        </Button>)}
-      </Stack>
-      <Box sx={{ px: 1.5 }}><Typography variant="h6">+{gain.toFixed(2)} km²</Typography><Typography variant="caption" color="text.secondary">extra area · +{(after.coveragePercent - data.installed.coveragePercent).toFixed(1)} points</Typography></Box>
+  return <Box>
+    <Typography component="h2" variant="subtitle2" sx={{ mb: 1.5 }}>Network coverage</Typography>
+    <Stack direction="row" sx={{ gap: 1 }} aria-label="Before and after coverage">
+      {[{ label: "Before", metric: data.installed, value: true, color: "#7b8982" }, { label: "After", metric: after, value: false, color: "#176650" }].map(item => <Button key={item.label} aria-label={item.value ? "Before · installed only" : "After · chosen + suggested"} aria-pressed={before === item.value} onClick={() => onBeforeChange(item.value)} sx={{ flex: 1, p: 1.25, textAlign: "left", border: 1, borderColor: before === item.value ? "primary.main" : "divider", bgcolor: before === item.value ? "#f0f6f2" : "transparent", color: "text.primary" }}>
+        <Box sx={{ width: "100%" }}><Typography variant="caption" color="text.secondary">{item.label}</Typography><Typography sx={{ fontSize: 25, fontWeight: 650, letterSpacing: "-1px", fontVariantNumeric: "tabular-nums", my: 0.25 }}>{item.metric.coveragePercent.toFixed(1)}<Box component="span" sx={{ fontSize: 15, ml: 0.25 }}>%</Box></Typography>
+          <Box sx={{ height: 3, bgcolor: "#e4eae5", borderRadius: 1 }}><Box sx={{ width: `${item.metric.coveragePercent}%`, height: "100%", bgcolor: item.color, borderRadius: 1 }} /></Box>
+        </Box>
+      </Button>)}
     </Stack>
-    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, px: 1.5 }}>Map showing {before ? "installed sensors" : "chosen + suggested locations"} · Estimated air coverage over {data.areaKm2.toFixed(1)} km²</Typography>
-  </Card>;
+    <Typography variant="body2" sx={{ mt: 1.5, color: "primary.main", fontWeight: 650 }}>+{gain.toFixed(2)} km² <Box component="span" sx={{ color: "text.secondary", fontWeight: 400 }}>additional coverage</Box></Typography>
+    {plan && simulation.some(s => s.category === "air") && <Typography variant="caption" color="text.secondary">This suggestion adds {plan.jointPlan.metrics.addedKm2.toFixed(2)} km² beyond your chosen locations.</Typography>}
+    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, fontSize: 10, lineHeight: 1.6 }}>{before ? "Showing installed sensors only." : "Showing chosen and suggested locations."} Estimated over {data.areaKm2.toFixed(1)} km² with a 2 km reach.</Typography>
+  </Box>;
 }
