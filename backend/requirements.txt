@@ -10,3 +10,4 @@ scipy
 openai
 python-dotenv
 pytest
+gtfs-realtime-bindings==2.0.0

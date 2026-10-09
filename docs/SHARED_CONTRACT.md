@@ -14,13 +14,13 @@ Repository: https://github.com/sadman2762/sprint-greenmind-ai
 
 ## Challenge
 
-Recommend two or three monitoring stations jointly. After each virtual placement, recompute coverage and candidate value. Compare the original independent ranking with the joint network. Quantify each station's marginal contribution and explain at least one trade-off between environmental importance and redundancy.
+Recommend two or three monitoring stations jointly. After each virtual placement, recompute coverage and candidate value. Compare the original repository method with the joint network. Preserve a separately labeled independent-ranking control. Quantify each station's marginal contribution and explain at least one trade-off between environmental importance and redundancy.
 
-The primary demonstration is one repeatable workflow: existing network -> independent ranking -> joint plan -> selection steps -> comparison -> decision brief.
+The primary demonstration is one repeatable workflow: current network -> joint plan -> selection steps -> Original comparison -> decision brief.
 
 ## Proposed API: agree before implementing
 
-An air-only case-study pilot is now described in [JOINT_PLANNER.md](JOINT_PLANNER.md), with its implemented `1.0-air` request/response contract. The broader multi-category proposal below remains future work; its category weights and feasible-water-site rules are not implemented by the pilot.
+The category-specific case-study planner is described in [JOINT_PLANNER.md](JOINT_PLANNER.md), with its implemented `1.2-network` request/response contract (air and noise, separately). The broader multi-category proposal below remains future work; mixed-category optimization and feasible-water-site rules are not implemented.
 
 This is a proposal, not an endpoint that already exists. Before implementation, agree on exact types, nullability, error responses, and a synthetic example response.
 
@@ -101,3 +101,23 @@ Use the platform's equivalent virtual-environment interpreter on Windows. Before
 ## Presentation ownership
 
 Kirill leads the visual story and live demonstration. The backend owner explains methodology, evidence, and limitations. Use actual computed improvements, never invented percentages. Prepare local backup screenshots or a recording of the same validated scenario. The original PowerPoint still requires an accessible export for review.
+
+## Original comparison (user-confirmed source)
+
+Original means the method from https://github.com/Sayem-Kabir/greenmind-ai at `c15c09f694012d8abc75fb252c89a27c3fa4faef`. It is distinct from the independent top-k control using the new objective. API `1.1-air` adds `originalPlan` with provenance, availability/partial status, ordered stations, common-model metrics, per-selection gains, and comparison caveats. It also adds `originalComparison`. The prior `independentPlan` and `baselineRanking` fields remain an explicitly labeled independent control for compatibility.
+
+## Noise planning extension
+
+User requested noise planning in addition to the air workflow. `POST /api/plans/joint` and `/coverage` accept optional `planningCategory: "air" | "noise"` (default air). Response schema is `1.2-network` and contains `planningCategory`. Noise uses only historical noise sites and chosen/registered noise sensors, a 1 km planning radius, and nighttime sound-energy IDW within 5 km. Other cells receive area-only importance. `GET /api/plans/noise-sites` returns historical site coordinates and period aggregates, never live telemetry. Air and noise coverage remain separate. Equivalent Original noise selection is unavailable and labeled; an independent noise-ranking control remains available. DKV was audited but is not an optimization input. See `NOISE_PLANNING.md` and `DKV_DATA_AUDIT.md`.
+
+## Configurable ranges and graph
+
+User-authorized extension `1.3-ranges` adds `coverageRadiiKm` (Air/Water/Noise category defaults) and `sensorRadiusOverridesKm` (`category:stationCode`, or `category:id`). Frontend zones and Air/Noise planning use the same settings; new suggestions use the category radius. Original retains its old selection rules but receives common-radius evaluation. Water map/manual placement remains available without claiming water auto-optimization. Graph links explain proximity and configured circle overlap with source-labeled DKV context, not causation. See [RANGES_AND_CONNECTIONS.md](RANGES_AND_CONNECTIONS.md).
+
+## Proposal editing
+
+The user authorized choosing a radius during placement and dragging unapplied purple suggestions. `newSensorRadiusKm` is an optional validated candidate radius, independent of existing category defaults. `/api/plans/evaluate` evaluates an ordered list of 1–3 manually adjusted proposals against the same base network and environmental field; it does not rerun optimization. Edited proposals remain separate from chosen sensors until Apply; their radii are transferred as individual overrides. Old ranking/optimality explanations must not be shown for moved coordinates. See `RANGES_AND_CONNECTIONS.md`.
+
+## Live transport extension
+
+User-authorized `GET /api/transit/vehicles` proxies full GTFS-RT VehiclePositions snapshots with server-only credentials. Source labels must distinguish BKK Budapest from DKV Debrecen. Live vehicles are a separate optional map layer, not historical DKV activity or an optimization input. Unknown mode/route/speed remain unknown; timestamps and stale positions are explicit. See [LIVE_TRANSIT.md](LIVE_TRANSIT.md) for schema, configuration and polling behavior.

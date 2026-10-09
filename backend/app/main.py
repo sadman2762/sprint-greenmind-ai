@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import traffic
+from app.routes.live_transit import router as live_transit_router
 
 from app.routes.data_quality import router as data_quality_router
 from app.routes.stations import router as station_router
@@ -63,3 +64,5 @@ app.include_router(maintenance_router)
 app.include_router(plans_router)
 
 app.include_router(geocoding_router)
+
+app.include_router(live_transit_router)

@@ -79,3 +79,11 @@ test("category-specific ranges and no-data state are rendered honestly", () => {
   assert.match(html, /≤ 1/);
   assert.match(html, /1–2/);
 });
+
+test("noise suggestions update the noise legend with its own radius", () => {
+  const html = renderToStaticMarkup(createElement(MapLegend, { ...base, initialMode: "compact", coverageCategory: "noise", additionalPlanCategory: "noise", additionalPlanCount: 3 }));
+  assert.match(html, /3 planned/);
+  assert.match(html, /≤ 1/);
+  assert.match(html, /1–2/);
+  assert.doesNotMatch(html, /2–4/);
+});

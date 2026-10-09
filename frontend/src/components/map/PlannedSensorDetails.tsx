@@ -1,3 +1,4 @@
+import { useRanges } from "../../context/rangeState";
 import { Alert, Button, FormControl, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
 import { useSimulation, type SimulatedStation } from "../../context/SimulationContext";
 import { TIER_CONFIGS, type SensorTier } from "../../types/budget";
@@ -6,6 +7,7 @@ import { findNearestStation } from "../../utils/nearestStation";
 import LocationAddress from "./LocationAddress";
 
 export default function PlannedSensorDetails({ station, stations }: { station: SimulatedStation; stations: Station[] }) {
+  const { radiusFor } = useRanges();
   const { updateStationTier, removeSimulatedStation } = useSimulation();
   const tier = station.sensorTier ?? "air";
   const config = TIER_CONFIGS[tier];
@@ -18,8 +20,8 @@ export default function PlannedSensorDetails({ station, stations }: { station: S
     </FormControl>
     <LocationAddress lat={station.lat} lng={station.lng} />
     <Alert severity="info">Planned location only. No sensor has been installed here, so there are no measured air, noise or water readings for this pin.</Alert>
-    <Typography variant="body2">Planning reach: <strong>{config.radiusKm} km</strong>. This is a coverage assumption.</Typography>
-    <Typography variant="body2">Nearest existing {tier} sensor: {nearest.station ? `${nearest.station.name} (${nearest.distanceKm!.toFixed(2)} km away)` : "No compatible location available."}</Typography>
+    <Typography variant="body2">Scenario radius: <strong>{radiusFor(station)} km</strong>. This is a coverage assumption.</Typography>
+    <Typography variant="body2">{tier === "noise" ? "Nearest historical noise site:" : `Nearest existing ${tier} sensor:`} {nearest.station ? `${nearest.station.name} (${nearest.distanceKm!.toFixed(2)} km away)` : "No compatible location available."}</Typography>
     <Typography variant="body2" color="text.secondary">Budget assumptions: €{config.unitCost.toLocaleString()} purchase and €{config.annualOm.toLocaleString()}/year upkeep. These are configured estimates, not a supplier quote.</Typography>
     <Typography variant="caption">Drag the pin to adjust its position. Coverage and the address will update.</Typography>
     <Button color="error" variant="outlined" onClick={() => removeSimulatedStation(station.id)}>{station.isCustom ? "Remove This Custom Sensor" : "Remove From Simulation"}</Button>

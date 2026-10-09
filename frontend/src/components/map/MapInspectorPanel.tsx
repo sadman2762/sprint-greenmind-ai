@@ -1,18 +1,18 @@
-import { useId, useState } from "react";
-import { Box, Button, Collapse, IconButton, Paper, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { useId, useState, type ReactNode } from "react";
+import { Box, Button, Collapse, IconButton, Paper, Stack, Typography, useMediaQuery, useTheme, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMapInspector } from "../../context/mapInspectorState";
 
-export default function MapInspectorPanel({ compact = false, workspace = false }: { compact?: boolean; workspace?: boolean }) {
+export default function MapInspectorPanel({ compact = false, workspace = false, connections, rangeEditor, fallbackDetails, connectionsOpen = false, onConnectionsChange }: { compact?: boolean; workspace?: boolean; connections?: ReactNode; rangeEditor?: ReactNode; fallbackDetails?: ReactNode; connectionsOpen?: boolean; onConnectionsChange?: (open: boolean) => void }) {
   const { selection, setHost, close } = useMapInspector();
   const [expanded, setExpanded] = useState(false);
   const headingId = useId();
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up("md"));
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const open = desktop || expanded;
+  const open = desktop || expanded || connectionsOpen;
   if (!selection) return null;
 
   return (
@@ -48,7 +48,7 @@ export default function MapInspectorPanel({ compact = false, workspace = false }
             size="small"
             aria-expanded={open}
             aria-controls={`${headingId}-content`}
-            onClick={() => setExpanded((value) => !value)}
+            onClick={() => { if (open) { setExpanded(false); onConnectionsChange?.(false); } else setExpanded(true); }}
             endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
           >
             {open ? "Collapse details" : "Expand details"}
@@ -56,7 +56,9 @@ export default function MapInspectorPanel({ compact = false, workspace = false }
         )}
         <IconButton aria-label="Close location details" onClick={() => close()} size="small"><CloseIcon /></IconButton>
       </Stack>
-      <Collapse in={open} timeout={reducedMotion ? 0 : theme.transitions.duration.shorter}>
+      {connections && <ToggleButtonGroup exclusive fullWidth size="small" value={connectionsOpen ? "connections" : "details"} aria-label="Location inspector view" onChange={(_, value) => { if (value) onConnectionsChange?.(value === "connections"); }}><ToggleButton value="details">Details</ToggleButton><ToggleButton value="connections">Connections</ToggleButton></ToggleButtonGroup>}
+      <Collapse in={open} timeout={reducedMotion ? 0 : theme.transitions.duration.shorter}>{connectionsOpen && rangeEditor ? <Box component="details" sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider" }}><Typography component="summary" variant="body2" sx={{ cursor: "pointer" }}>Adjust this sensor’s radius</Typography>{rangeEditor}</Box> : rangeEditor}{connectionsOpen && connections}</Collapse>
+      <Collapse in={open && !connectionsOpen} timeout={reducedMotion ? 0 : theme.transitions.duration.shorter}>
         <Box
           id={`${headingId}-content`}
           ref={setHost}
@@ -67,6 +69,7 @@ export default function MapInspectorPanel({ compact = false, workspace = false }
             "& .MuiTypography-h6": { fontSize: theme.typography.h5.fontSize, lineHeight: 1.4 },
           }}
         />
+        {fallbackDetails && !connectionsOpen && <Box sx={{ px: 2.5, pb: 2.5 }}>{fallbackDetails}</Box>}
       </Collapse>
     </Paper>
   );

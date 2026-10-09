@@ -25,3 +25,11 @@ export async function getStations(signal?: AbortSignal): Promise<Station[]> {
 
   return data.stations;
 }
+
+export async function getNoiseSites(signal?: AbortSignal): Promise<Station[]> {
+  const response = await fetch("/api/plans/noise-sites", { signal });
+  if (!response.ok) throw new Error("Noise measurement sites are unavailable.");
+  const data = await response.json();
+  if (!Array.isArray(data.stations)) throw new Error("Invalid noise site response.");
+  return data.stations;
+}

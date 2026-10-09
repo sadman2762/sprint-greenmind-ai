@@ -3,7 +3,8 @@ import { Rectangle } from "react-leaflet";
 
 import { cityGrid, GRID_STEP } from "../../services/gridService";
 import type { Station } from "../../types/station";
-import { findNearestStation } from "../../utils/nearestStation";
+import { useRanges } from "../../context/rangeState";
+import { relativeRangeAt } from "../../utils/sensorRange";
 import type { SensorTier } from "../../types/budget";
 import { getCoverageBand, isCoverageStation, type CoverageBandId } from "../../utils/mapLegend";
 
@@ -16,6 +17,7 @@ interface CoverageHeatmapProps {
 const CoverageHeatmap = React.memo(function CoverageHeatmap({
   stations, category, visibleBands,
 }: CoverageHeatmapProps) {
+  const { radii, overrides } = useRanges();
   const heatmapPoints = useMemo(() => {
     const airStations = stations.filter((station) => isCoverageStation(station, category));
 
@@ -23,25 +25,10 @@ const CoverageHeatmap = React.memo(function CoverageHeatmap({
       return [];
     }
 
-    // Benchmark distance scale for Green Sentinel physical network coverage:
-    // - Full coverage: radius <= 2.0 km (Green, score >= 70, matches 2000m sensor circles)
-    // - Interpolated coverage: 2.0 km < radius <= 4.0 km (Yellow, score 40 - 69)
-    // - Unmonitored blind spot: radius > 4.0 km (Red, score < 40)
-
     return cityGrid
       .map((point) => {
-        const nearest = findNearestStation(
-          point.lat,
-          point.lng,
-          airStations,
-          category,
-        );
-
-        if (nearest.distanceKm === null || !Number.isFinite(nearest.distanceKm)) {
-          return null;
-        }
-
-        const band = getCoverageBand(nearest.distanceKm, category);
+        const relativeDistance = relativeRangeAt(point, airStations, radii, overrides);
+        const band = getCoverageBand(relativeDistance, category, 1);
         if (!band || !visibleBands.includes(band.id)) return null;
         const color = band.color;
         const fillOpacity = band.opacity;
@@ -55,7 +42,7 @@ const CoverageHeatmap = React.memo(function CoverageHeatmap({
         };
       })
       .filter((p): p is NonNullable<typeof p> => p !== null);
-  }, [stations, category, visibleBands]);
+  }, [stations, category, visibleBands, radii, overrides]);
 
   if (heatmapPoints.length === 0) {
     return null;

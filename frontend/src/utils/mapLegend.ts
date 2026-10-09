@@ -38,9 +38,9 @@ export const COVERAGE_BANDS: { id: CoverageBandId; max: number; label: string; c
   { id: "gap", max: Infinity, label: "Gap", color: "#d32f2f", opacity: 0.18 },
 ];
 
-export function getCoverageBands(category: SensorTier = "air") {
-  if (category === "air") return COVERAGE_BANDS;
-  return COVERAGE_BANDS.map((band, index) => ({ ...band, max: index < 2 ? TIER_CONFIGS[category].radiusKm * (index + 1) : Infinity }));
+export function getCoverageBands(category: SensorTier = "air", radiusKm = TIER_CONFIGS[category].radiusKm) {
+  if (category === "air" && radiusKm === COVERAGE_RADIUS_KM) return COVERAGE_BANDS;
+  return COVERAGE_BANDS.map((band, index) => ({ ...band, max: index < 2 ? Number((radiusKm * (index + 1)).toFixed(3)) : Infinity }));
 }
 
 export const TRAFFIC_BANDS = [
@@ -54,9 +54,9 @@ export function getPm25Color(value?: number | null): string {
   return PM25_BANDS.find((band) => value <= band.max)!.color;
 }
 
-export function getCoverageBand(distanceKm: number, category: SensorTier = "air") {
+export function getCoverageBand(distanceKm: number, category: SensorTier = "air", radiusKm = TIER_CONFIGS[category].radiusKm) {
   if (!Number.isFinite(distanceKm) || distanceKm < 0) return null;
-  return getCoverageBands(category).find((band) => distanceKm <= band.max)!;
+  return getCoverageBands(category, radiusKm).find((band) => distanceKm <= band.max)!;
 }
 
 export function getTrafficBand(score: number) {
@@ -94,6 +94,9 @@ export function isAirCoverageStation(station: LegendStation): boolean {
 }
 
 export interface LegendOptions {
+  radiusKm?: number;
+  radiiKm?: Partial<Record<SensorTier, number>>;
+  hasRadiusOverrides?: boolean;
   showStations: boolean;
   showCoverage: boolean;
   showTraffic: boolean;
@@ -129,9 +132,9 @@ export function getLegendSections(options: LegendOptions): LegendSection[] {
   const hasExistingAir = stations.some(isAirCoverageStation);
   const hasExistingCoverage = stations.some((station) => isCoverageStation(station, coverageCategory));
   const hasSimulatedCoverage = simulatedStations.some((station) => isCoverageStation(station, coverageCategory));
-  const bands = getCoverageBands(coverageCategory);
+  const bands = getCoverageBands(coverageCategory, options.hasRadiusOverrides ? 1 : options.radiusKm);
   const categoryLabel = COVERAGE_CATEGORIES.find((category) => category.value === coverageCategory)!.label;
-  const radius = TIER_CONFIGS[coverageCategory].radiusKm;
+  const radius = options.hasRadiusOverrides ? "individual" : (options.radiusKm ?? TIER_CONFIGS[coverageCategory].radiusKm);
   const sections: LegendSection[] = [];
 
   if (options.overview) {
@@ -153,7 +156,7 @@ export function getLegendSections(options: LegendOptions): LegendSection[] {
         ? `Distance to ${coverageCategory} locations, not pollution. Radii are planning assumptions${coverageCategory === "water" ? ", not hydrological catchments" : ""}.`
         : `No ${coverageCategory} locations in the current feed. Add a simulated ${coverageCategory} sensor to preview coverage.`,
       items: hasExistingCoverage || hasSimulatedCoverage ? bands.flatMap((band, index) => visibleBands.includes(band.id) ? [{
-        label: `${band.label} · ${rangeLabel(band.max, bands[index - 1]?.max, " km")}`,
+        label: `${band.label} · ${rangeLabel(band.max, bands[index - 1]?.max, options.hasRadiusOverrides ? " × sensor radius" : " km")}`,
         color: band.color,
         symbol: "area" as const,
       }] : []) : [],
@@ -186,7 +189,7 @@ export function getLegendSections(options: LegendOptions): LegendSection[] {
       title: "Planned sensors",
       description: "Hollow markers are planned sensors, not measurements. Coverage outlines are optional planning footprints.",
       items: tiers.map((tier) => ({
-        label: `${TIER_CONFIGS[tier].name}${options.showRadius ? ` · ${TIER_CONFIGS[tier].radiusKm} km` : ""}`,
+        label: `${TIER_CONFIGS[tier].name}${options.showRadius ? ` · ${(options.radiiKm?.[tier] ?? TIER_CONFIGS[tier].radiusKm)} km category default` : ""}`,
         ...CATEGORY_MARKERS[tier], outlined: true,
       })),
     });
@@ -208,13 +211,13 @@ export function getLegendSections(options: LegendOptions): LegendSection[] {
   if (options.showRadius && options.overview) {
     sections.push({ id: "radius", title: "Coverage outlines", description: "Planning footprints, not measured detection ranges or hydrological catchments.", items: getNetworkOverview(stations, simulatedStations)
       .filter((network) => network.existingCount + network.plannedCount > 0)
-      .map((network) => ({ label: `${network.label} · ${TIER_CONFIGS[network.category].radiusKm} km`, color: network.color, symbol: "ring" })) });
+      .map((network) => ({ label: `${network.label} · ${(options.radiiKm?.[network.category] ?? TIER_CONFIGS[network.category].radiusKm)} km category default`, color: network.color, symbol: "ring" })) });
   }
 
   if (options.showRadius && !options.overview && (hasExistingCoverage || hasSimulatedCoverage)) {
     const items: LegendItem[] = [];
-    if (hasExistingCoverage) items.push({ label: `Existing · ${radius} km`, color: RADIUS_COLORS.existing.stroke, symbol: "ring" });
-    if (hasSimulatedCoverage) items.push({ label: `Planned · ${radius} km`, color: CATEGORY_MARKERS[coverageCategory].color, symbol: "dashed-ring" });
+    if (hasExistingCoverage) items.push({ label: `Existing · ${radius}${options.hasRadiusOverrides ? " radii" : " km"}`, color: RADIUS_COLORS.existing.stroke, symbol: "ring" });
+    if (hasSimulatedCoverage) items.push({ label: `Planned · ${radius}${options.hasRadiusOverrides ? " radii" : " km"}`, color: CATEGORY_MARKERS[coverageCategory].color, symbol: "dashed-ring" });
     sections.push({
       id: "radius",
       title: `${categoryLabel} radius`,

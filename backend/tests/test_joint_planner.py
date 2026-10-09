@@ -37,7 +37,7 @@ def test_api_contract_and_marginal_reconciliation(monkeypatch):
     first = client.post('/api/plans/joint', json={"stationCount": 3})
     assert first.status_code == 200
     p = first.json()
-    assert p['schemaVersion'] == '1.0-air'
+    assert p['schemaVersion'] == '1.3-ranges'
     ids = [s['id'] for s in p['jointPlan']['stations']]
     assert len(ids) == len(set(ids)) == 3
     assert sum(s['marginalKm2'] for s in p['steps']) == pytest.approx(p['jointPlan']['metrics']['addedKm2'])
@@ -99,3 +99,30 @@ def test_single_suggestions_recompute_after_applied_manual_and_auto_locations(mo
         assert comparison.status_code == 200
         assert comparison.json()['chosen']['coveredKm2'] == pytest.approx(previous)
         assert comparison.json()['installed']['coveredKm2'] == 0
+
+
+def test_step_evidence_matches_geometric_coverage_before_and_after(monkeypatch):
+    from app.routes.plans import JointPlanRequest
+    from app.services.joint_planner import build_joint_plan, distances, generate_city_grid
+    from app.services import sensor_health_service as lifecycle
+    monkeypatch.setattr(lifecycle, 'CUSTOM_REGISTERED_SENSORS', [])
+    monkeypatch.setattr(lifecycle, 'DECOMMISSIONED_STATION_CODES', set())
+    official = [{'id': 1, 'name': 'Synthetic station', 'station_type': 0,
+                 'lat': 47.53, 'lng': 21.62, 'pm25': 12}]
+    plan = build_joint_plan(JointPlanRequest(stationCount=3), official)
+    points = np.array([[g['lat'], g['lng']] for g in generate_city_grid()])
+    areas = (111.195 * 0.0055) ** 2 * np.cos(np.radians(points[:, 0]))
+    covered = distances(points, [[47.53, 21.62]])[:, 0] <= 2
+    for step in plan['steps']:
+        evidence = step['recalculation']
+        assert evidence is not None
+        candidate = evidence['station']
+        mask = distances(points, [[candidate['lat'], candidate['lng']]])[:, 0] <= 2
+        assert evidence['beforeKm2'] == pytest.approx(areas[mask & ~covered].sum())
+        selected = step['station']
+        covered |= distances(points, [[selected['lat'], selected['lng']]])[:, 0] <= 2
+        assert evidence['afterKm2'] == pytest.approx(areas[mask & ~covered].sum())
+        assert evidence['afterKm2'] <= evidence['beforeKm2'] + 1e-9
+        assert evidence['excludedBySeparation'] == bool(distances(
+            [[candidate['lat'], candidate['lng']]], [[selected['lat'], selected['lng']]])[0, 0] < 1)
+        assert step['cumulative']['coveredKm2'] == pytest.approx(areas[covered].sum())

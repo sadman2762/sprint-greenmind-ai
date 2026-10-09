@@ -6,6 +6,14 @@ import { PM25_BANDS } from "../../utils/mapLegend";
 import { cleanStationLocation, compassDirection, formatCoValue, formatMeasurement } from "../../utils/stationDetails";
 
 export default function StationDetails({ station }: { station: Station }) {
+  if (station.sensorTier === "noise") return <Stack spacing={2}>
+    <Typography variant="subtitle2">Historical noise measurements</Typography>
+    <Typography variant="body2">{station.periodStart} to {station.periodEnd}</Typography>
+    <Typography variant="body2">Daytime: {formatMeasurement(station.daytimeNoise, "dB")}</Typography>
+    <Typography variant="body2">Nighttime: {formatMeasurement(station.nighttimeNoise, "dB")}</Typography>
+    <Typography variant="caption" color="text.secondary">Sound-energy averages of recorded daily periods. These are historical observations, not live readings or measurements at a suggested location.</Typography>
+    <Typography variant="caption">{station.lat.toFixed(6)}, {station.lng.toFixed(6)}</Typography>
+  </Stack>;
   const validPm25 = station.pm25 != null && Number.isFinite(station.pm25) && station.pm25 >= 0;
   const bandIndex = validPm25 ? PM25_BANDS.findIndex((band) => station.pm25! <= band.max) : -1;
   const measurements = [
