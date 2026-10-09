@@ -79,10 +79,10 @@ export interface AiCityAnalyticsResponse {
   };
 }
 
-const API_BASE_URL = "http://localhost:8000/api/recommendations/ai-city-analytics";
+const API_BASE_URL = "/api/recommendations/ai-city-analytics";
 
-export async function getAiCityAnalytics(): Promise<AiCityAnalyticsResponse> {
-  const response = await fetch(API_BASE_URL);
+export async function getAiCityAnalytics(signal?: AbortSignal): Promise<AiCityAnalyticsResponse> {
+  const response = await fetch(API_BASE_URL, { signal });
   if (!response.ok) {
     throw new Error(`Failed to load AI city analytics: ${response.status}`);
   }

@@ -1,0 +1,800 @@
+{
+  "schemaVersion": "1.0-air",
+  "datasetVersion": "671849d551830990",
+  "objectiveVersion": "area-pm25-idw-v1",
+  "method": "Deterministic greedy marginal gain; heuristic within the sampled candidate set.",
+  "studyArea": {
+    "name": "Debrecen urban planning grid",
+    "areaKm2": 205.81441845176195,
+    "gridPoints": 815,
+    "radiusKm": 2.0,
+    "gridStepDegrees": 0.0055,
+    "distanceModel": "Local equirectangular approximation"
+  },
+  "assumptions": [
+    "Each grid point represents a local rectangular cell; boundary cells are approximate.",
+    "Importance = 1 + environmentalWeight \u00d7 clip(IDW PM2.5 / 35, 0, 2). The 35 reference is an objective scale, not a legal threshold.",
+    "Weighted objective units are area \u00d7 importance, and are not physical km\u00b2.",
+    "PM2.5 uses available historical station means; source periods can differ. Predictions never become training observations."
+  ],
+  "warnings": [
+    "SYNTHETIC BROWSER-TEST FIXTURE: not environmental observations.",
+    "Air-network pilot: noise and water coverage are not included.",
+    "Candidate grid locations need access, land-use and installation checks before deployment.",
+    "Circular coverage and interpolated PM2.5 are planning assumptions, not measured representativeness."
+  ],
+  "existingStations": [
+    {
+      "id": "SYNTHETIC-A",
+      "lat": 47.53,
+      "lng": 21.62,
+      "name": "Synthetic browser fixture station"
+    }
+  ],
+  "existingMetrics": {
+    "coveredKm2": 12.879490668362445,
+    "coveragePercent": 6.257817486864311,
+    "addedKm2": 0.0,
+    "weightedGain": 0.0
+  },
+  "baselineRanking": [
+    {
+      "id": "air-47.479500-21.600000",
+      "lat": 47.4795,
+      "lng": 21.6,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 36",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.954251137819288,
+      "independentAddedKm2": 11.880825315397338
+    },
+    {
+      "id": "air-47.479500-21.611000",
+      "lat": 47.4795,
+      "lng": 21.611,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 37",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.954251137819288,
+      "independentAddedKm2": 11.880825315397338
+    },
+    {
+      "id": "air-47.479500-21.633000",
+      "lat": 47.4795,
+      "lng": 21.633,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 39",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.954251137819288,
+      "independentAddedKm2": 11.880825315397338
+    },
+    {
+      "id": "air-47.479500-21.644000",
+      "lat": 47.4795,
+      "lng": 21.644,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 40",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.954251137819288,
+      "independentAddedKm2": 11.880825315397338
+    },
+    {
+      "id": "air-47.479500-21.655000",
+      "lat": 47.4795,
+      "lng": 21.655,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 41",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.954251137819288,
+      "independentAddedKm2": 11.880825315397338
+    },
+    {
+      "id": "air-47.479500-21.622000",
+      "lat": 47.4795,
+      "lng": 21.622,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 38",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.954251137819286,
+      "independentAddedKm2": 11.880825315397338
+    },
+    {
+      "id": "air-47.485000-21.578000",
+      "lat": 47.485,
+      "lng": 21.578,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 49",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.589000",
+      "lat": 47.485,
+      "lng": 21.589,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 50",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.600000",
+      "lat": 47.485,
+      "lng": 21.6,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 51",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.611000",
+      "lat": 47.485,
+      "lng": 21.611,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 52",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.622000",
+      "lat": 47.485,
+      "lng": 21.622,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 53",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.633000",
+      "lat": 47.485,
+      "lng": 21.633,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 54",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.644000",
+      "lat": 47.485,
+      "lng": 21.644,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 55",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.655000",
+      "lat": 47.485,
+      "lng": 21.655,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 56",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.666000",
+      "lat": 47.485,
+      "lng": 21.666,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 57",
+      "estimatedPm25": 12.000000000000002,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.485000-21.677000",
+      "lat": 47.485,
+      "lng": 21.677,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 58",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.952580927430601,
+      "independentAddedKm2": 11.879581541703638
+    },
+    {
+      "id": "air-47.490500-21.578000",
+      "lat": 47.4905,
+      "lng": 21.578,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 65",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.950910570044034,
+      "independentAddedKm2": 11.87833765854343
+    },
+    {
+      "id": "air-47.490500-21.589000",
+      "lat": 47.4905,
+      "lng": 21.589,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 66",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.950910570044034,
+      "independentAddedKm2": 11.87833765854343
+    },
+    {
+      "id": "air-47.490500-21.600000",
+      "lat": 47.4905,
+      "lng": 21.6,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 67",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.950910570044034,
+      "independentAddedKm2": 11.87833765854343
+    },
+    {
+      "id": "air-47.490500-21.611000",
+      "lat": 47.4905,
+      "lng": 21.611,
+      "category": "air",
+      "hardwareGrade": "unspecified",
+      "name": "Candidate 68",
+      "estimatedPm25": 12.0,
+      "independentWeightedGain": 15.950910570044034,
+      "independentAddedKm2": 11.87833765854343
+    }
+  ],
+  "independentPlan": {
+    "stations": [
+      {
+        "id": "air-47.479500-21.600000",
+        "lat": 47.4795,
+        "lng": 21.6,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 36",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      },
+      {
+        "id": "air-47.479500-21.611000",
+        "lat": 47.4795,
+        "lng": 21.611,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 37",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      },
+      {
+        "id": "air-47.479500-21.633000",
+        "lat": 47.4795,
+        "lng": 21.633,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 39",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      }
+    ],
+    "metrics": {
+      "coveredKm2": 34.8716566298896,
+      "coveragePercent": 16.94325251467389,
+      "addedKm2": 21.99216596152716,
+      "weightedGain": 29.532337148336463
+    },
+    "constraintViolations": [
+      "air-47.479500-21.600000 and air-47.479500-21.611000 violate minimum separation."
+    ]
+  },
+  "jointPlan": {
+    "stations": [
+      {
+        "id": "air-47.479500-21.600000",
+        "lat": 47.4795,
+        "lng": 21.6,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 36",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      },
+      {
+        "id": "air-47.479500-21.655000",
+        "lat": 47.4795,
+        "lng": 21.655,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 41",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      },
+      {
+        "id": "air-47.501500-21.556000",
+        "lat": 47.5015,
+        "lng": 21.556,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 98",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.947569414338828,
+        "independentAddedKm2": 11.875849563869336
+      }
+    ],
+    "metrics": {
+      "coveredKm2": 48.516990863026464,
+      "coveragePercent": 23.573173943786504,
+      "addedKm2": 35.63750019466402,
+      "weightedGain": 47.8560716899774
+    }
+  },
+  "steps": [
+    {
+      "station": {
+        "id": "air-47.479500-21.600000",
+        "lat": 47.4795,
+        "lng": 21.6,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 36",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      },
+      "marginalKm2": 11.880825315397338,
+      "marginalWeightedGain": 15.954251137819288,
+      "overlapFraction": 0.0,
+      "cumulative": {
+        "coveredKm2": 24.760315983759778,
+        "coveragePercent": 12.030408836280348,
+        "addedKm2": 11.880825315397338,
+        "weightedGain": 15.95425113781929
+      },
+      "updatedRanking": [
+        {
+          "id": "air-47.479500-21.655000",
+          "lat": 47.4795,
+          "lng": 21.655,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 41",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.954251137819288,
+          "independentAddedKm2": 11.880825315397338,
+          "marginalWeightedGain": 15.954251137819288
+        },
+        {
+          "id": "air-47.485000-21.655000",
+          "lat": 47.485,
+          "lng": 21.655,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 56",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.952580927430601,
+          "independentAddedKm2": 11.879581541703638,
+          "marginalWeightedGain": 15.952580927430601
+        },
+        {
+          "id": "air-47.485000-21.666000",
+          "lat": 47.485,
+          "lng": 21.666,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 57",
+          "estimatedPm25": 12.000000000000002,
+          "independentWeightedGain": 15.952580927430601,
+          "independentAddedKm2": 11.879581541703638,
+          "marginalWeightedGain": 15.952580927430601
+        },
+        {
+          "id": "air-47.485000-21.677000",
+          "lat": 47.485,
+          "lng": 21.677,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 58",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.952580927430601,
+          "independentAddedKm2": 11.879581541703638,
+          "marginalWeightedGain": 15.952580927430601
+        },
+        {
+          "id": "air-47.490500-21.655000",
+          "lat": 47.4905,
+          "lng": 21.655,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 72",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.950910570044034,
+          "independentAddedKm2": 11.87833765854343,
+          "marginalWeightedGain": 15.950910570044034
+        },
+        {
+          "id": "air-47.490500-21.666000",
+          "lat": 47.4905,
+          "lng": 21.666,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 73",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.950910570044034,
+          "independentAddedKm2": 11.87833765854343,
+          "marginalWeightedGain": 15.950910570044034
+        },
+        {
+          "id": "air-47.490500-21.677000",
+          "lat": 47.4905,
+          "lng": 21.677,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 74",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.950910570044034,
+          "independentAddedKm2": 11.87833765854343,
+          "marginalWeightedGain": 15.950910570044034
+        },
+        {
+          "id": "air-47.490500-21.688000",
+          "lat": 47.4905,
+          "lng": 21.688,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 75",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.950910570044034,
+          "independentAddedKm2": 11.87833765854343,
+          "marginalWeightedGain": 15.950910570044034
+        },
+        {
+          "id": "air-47.496000-21.644000",
+          "lat": 47.496,
+          "lng": 21.644,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 88",
+          "estimatedPm25": 11.999999999999998,
+          "independentWeightedGain": 15.949240065674978,
+          "independentAddedKm2": 11.877093665928173,
+          "marginalWeightedGain": 15.949240065674978
+        },
+        {
+          "id": "air-47.496000-21.655000",
+          "lat": 47.496,
+          "lng": 21.655,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 89",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.949240065674978,
+          "independentAddedKm2": 11.877093665928173,
+          "marginalWeightedGain": 15.949240065674978
+        }
+      ],
+      "explanation": "Adds 11.88 km\u00b2 of modeled air coverage; 0% of its footprint overlaps prior coverage. Highest feasible marginal weighted gain at this step."
+    },
+    {
+      "station": {
+        "id": "air-47.479500-21.655000",
+        "lat": 47.4795,
+        "lng": 21.655,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 41",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.954251137819288,
+        "independentAddedKm2": 11.880825315397338
+      },
+      "marginalKm2": 11.880825315397338,
+      "marginalWeightedGain": 15.954251137819288,
+      "overlapFraction": 0.0,
+      "cumulative": {
+        "coveredKm2": 36.64114129915713,
+        "coveragePercent": 17.80300018569639,
+        "addedKm2": 23.761650630794687,
+        "weightedGain": 31.908502275638572
+      },
+      "updatedRanking": [
+        {
+          "id": "air-47.501500-21.556000",
+          "lat": 47.5015,
+          "lng": 21.556,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 98",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.947569414338828,
+          "independentAddedKm2": 11.875849563869336,
+          "marginalWeightedGain": 15.947569414338828
+        },
+        {
+          "id": "air-47.501500-21.699000",
+          "lat": 47.5015,
+          "lng": 21.699,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 111",
+          "estimatedPm25": 12.000000000000002,
+          "independentWeightedGain": 15.947569414338826,
+          "independentAddedKm2": 11.875849563869336,
+          "marginalWeightedGain": 15.947569414338826
+        },
+        {
+          "id": "air-47.507000-21.556000",
+          "lat": 47.507,
+          "lng": 21.556,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 116",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.945898616050979,
+          "independentAddedKm2": 11.874605352378385,
+          "marginalWeightedGain": 15.945898616050979
+        },
+        {
+          "id": "air-47.507000-21.567000",
+          "lat": 47.507,
+          "lng": 21.567,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 117",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.945898616050979,
+          "independentAddedKm2": 11.874605352378385,
+          "marginalWeightedGain": 15.945898616050979
+        },
+        {
+          "id": "air-47.507000-21.688000",
+          "lat": 47.507,
+          "lng": 21.688,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 128",
+          "estimatedPm25": 11.999999999999998,
+          "independentWeightedGain": 15.945898616050979,
+          "independentAddedKm2": 11.874605352378385,
+          "marginalWeightedGain": 15.945898616050979
+        },
+        {
+          "id": "air-47.507000-21.699000",
+          "lat": 47.507,
+          "lng": 21.699,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 129",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.945898616050977,
+          "independentAddedKm2": 11.874605352378385,
+          "marginalWeightedGain": 15.945898616050977
+        },
+        {
+          "id": "air-47.512500-21.550500",
+          "lat": 47.5125,
+          "lng": 21.5505,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 134",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.944227670826823,
+          "independentAddedKm2": 11.873361031466782,
+          "marginalWeightedGain": 15.944227670826823
+        },
+        {
+          "id": "air-47.512500-21.561500",
+          "lat": 47.5125,
+          "lng": 21.5615,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 135",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.944227670826823,
+          "independentAddedKm2": 11.873361031466782,
+          "marginalWeightedGain": 15.944227670826823
+        },
+        {
+          "id": "air-47.512500-21.572500",
+          "lat": 47.5125,
+          "lng": 21.5725,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 136",
+          "estimatedPm25": 12.000000000000002,
+          "independentWeightedGain": 15.944227670826823,
+          "independentAddedKm2": 11.873361031466782,
+          "marginalWeightedGain": 15.944227670826823
+        },
+        {
+          "id": "air-47.512500-21.671500",
+          "lat": 47.5125,
+          "lng": 21.6715,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 145",
+          "estimatedPm25": 11.999999999999998,
+          "independentWeightedGain": 15.944227670826823,
+          "independentAddedKm2": 11.873361031466782,
+          "marginalWeightedGain": 15.944227670826823
+        }
+      ],
+      "explanation": "Adds 11.88 km\u00b2 of modeled air coverage; 0% of its footprint overlaps prior coverage. Highest feasible marginal weighted gain at this step."
+    },
+    {
+      "station": {
+        "id": "air-47.501500-21.556000",
+        "lat": 47.5015,
+        "lng": 21.556,
+        "category": "air",
+        "hardwareGrade": "unspecified",
+        "name": "Candidate 98",
+        "estimatedPm25": 12.0,
+        "independentWeightedGain": 15.947569414338828,
+        "independentAddedKm2": 11.875849563869336
+      },
+      "marginalKm2": 11.875849563869336,
+      "marginalWeightedGain": 15.947569414338828,
+      "overlapFraction": 0.0,
+      "cumulative": {
+        "coveredKm2": 48.516990863026464,
+        "coveragePercent": 23.573173943786504,
+        "addedKm2": 35.63750019466402,
+        "weightedGain": 47.8560716899774
+      },
+      "updatedRanking": [
+        {
+          "id": "air-47.501500-21.699000",
+          "lat": 47.5015,
+          "lng": 21.699,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 111",
+          "estimatedPm25": 12.000000000000002,
+          "independentWeightedGain": 15.947569414338826,
+          "independentAddedKm2": 11.875849563869336,
+          "marginalWeightedGain": 15.947569414338826
+        },
+        {
+          "id": "air-47.507000-21.688000",
+          "lat": 47.507,
+          "lng": 21.688,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 128",
+          "estimatedPm25": 11.999999999999998,
+          "independentWeightedGain": 15.945898616050979,
+          "independentAddedKm2": 11.874605352378385,
+          "marginalWeightedGain": 15.945898616050979
+        },
+        {
+          "id": "air-47.507000-21.699000",
+          "lat": 47.507,
+          "lng": 21.699,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 129",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.945898616050977,
+          "independentAddedKm2": 11.874605352378385,
+          "marginalWeightedGain": 15.945898616050977
+        },
+        {
+          "id": "air-47.512500-21.671500",
+          "lat": 47.5125,
+          "lng": 21.6715,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 145",
+          "estimatedPm25": 11.999999999999998,
+          "independentWeightedGain": 15.944227670826823,
+          "independentAddedKm2": 11.873361031466782,
+          "marginalWeightedGain": 15.944227670826823
+        },
+        {
+          "id": "air-47.512500-21.682500",
+          "lat": 47.5125,
+          "lng": 21.6825,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 146",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.944227670826823,
+          "independentAddedKm2": 11.873361031466782,
+          "marginalWeightedGain": 15.944227670826823
+        },
+        {
+          "id": "air-47.512500-21.693500",
+          "lat": 47.5125,
+          "lng": 21.6935,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 147",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.944227670826823,
+          "independentAddedKm2": 11.873361031466782,
+          "marginalWeightedGain": 15.944227670826823
+        },
+        {
+          "id": "air-47.518000-21.677000",
+          "lat": 47.518,
+          "lng": 21.677,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 164",
+          "estimatedPm25": 11.999999999999998,
+          "independentWeightedGain": 15.942556578681764,
+          "independentAddedKm2": 11.87211660114599,
+          "marginalWeightedGain": 15.942556578681764
+        },
+        {
+          "id": "air-47.518000-21.688000",
+          "lat": 47.518,
+          "lng": 21.688,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 165",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.942556578681764,
+          "independentAddedKm2": 11.87211660114599,
+          "marginalWeightedGain": 15.942556578681764
+        },
+        {
+          "id": "air-47.518000-21.699000",
+          "lat": 47.518,
+          "lng": 21.699,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 166",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.942556578681764,
+          "independentAddedKm2": 11.87211660114599,
+          "marginalWeightedGain": 15.942556578681764
+        },
+        {
+          "id": "air-47.523500-21.671500",
+          "lat": 47.5235,
+          "lng": 21.6715,
+          "category": "air",
+          "hardwareGrade": "unspecified",
+          "name": "Candidate 180",
+          "estimatedPm25": 12.0,
+          "independentWeightedGain": 15.940885339631194,
+          "independentAddedKm2": 11.87087206142748,
+          "marginalWeightedGain": 15.940885339631194
+        }
+      ],
+      "explanation": "Adds 11.88 km\u00b2 of modeled air coverage; 0% of its footprint overlaps prior coverage. Highest feasible marginal weighted gain at this step."
+    }
+  ],
+  "tradeoff": "The independent top-3 covers 21.99 additional km\u00b2. The joint plan covers 35.64 additional km\u00b2. Environmental importance weights interpolated PM2.5; overlap contributes no new benefit. Candidate 37 scores 15.95 independently, but only 4.75 after the first joint selection.",
+  "benchmark": {
+    "method": "Exact search restricted to the top 24 independent candidates; not a global bound.",
+    "metrics": {
+      "coveredKm2": 48.265478126756534,
+      "coveragePercent": 23.450970291505026,
+      "addedKm2": 35.3859874583941,
+      "weightedGain": 47.51832601555779
+    }
+  },
+  "candidateCount": 401,
+  "elapsedMs": 10.4
+}

@@ -10,6 +10,7 @@ export type MonitoringNeed =
   | "water";
 
 export interface SensorRecommendation {
+  placementOnly?: boolean;
   id: number;
   lat: number;
   lng: number;

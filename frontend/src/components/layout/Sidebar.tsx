@@ -5,8 +5,6 @@ import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
 import {
   Box,
-  Chip,
-  Divider,
   Drawer,
   List,
   ListItemButton,
@@ -168,77 +166,6 @@ export default function Sidebar() {
         })}
       </List>
 
-      <Box sx={{ flexGrow: 1 }} />
-
-      <Box
-        sx={{
-          mt: "auto",
-          px: 2,
-          pb: 3,
-        }}
-      >
-        <Divider sx={{ mb: 2.5, borderColor: tokens.cardBorder }} />
-
-        <Box
-          sx={{
-            p: 2,
-            borderRadius: 3,
-            border: `1px solid ${tokens.sidebarFooterBorder}`,
-            backgroundColor: tokens.sidebarFooterBg,
-            boxShadow: "none",
-            transition: "all 0.3s ease",
-          }}
-        >
-          <Chip
-            size="small"
-            label="DEIK.AI Challenge 2026"
-            sx={{
-              mb: 1.25,
-              color: isMidnight ? "#79b998" : "#0f766e",
-              backgroundColor: isMidnight
-                ? "rgba(0, 220, 130, 0.15)"
-                : "#d8f1ea",
-              border: isMidnight ? "1px solid rgba(0, 220, 130, 0.3)" : "none",
-              fontWeight: 600,
-            }}
-          />
-
-          <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5, mb: 0.5 }}>
-            <Typography
-              component="span"
-              sx={{
-                fontWeight: 700,
-                fontSize: "1.05rem",
-                color: isMidnight ? "#ffffff" : "#183d35",
-              }}
-            >
-              GreenMind
-            </Typography>
-            <Typography
-              component="span"
-              sx={{
-                fontWeight: 700,
-                fontSize: "1.05rem",
-                color: tokens.brandNameWord2,
-              }}
-            >
-              AI
-            </Typography>
-          </Box>
-
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              color: isMidnight ? "#94a3b8" : "#6b7f79",
-              lineHeight: 1.4,
-              fontSize: "0.75rem",
-            }}
-          >
-            {tokens.brandTagline}
-          </Typography>
-        </Box>
-      </Box>
     </Drawer>
   );
 }

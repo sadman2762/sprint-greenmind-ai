@@ -29,6 +29,7 @@ interface SimulationContextType {
   ) => void;
 
   deployOptimizedPlan: (stations: OptimizedStation[]) => void;
+  applySuggestedLocations: (locations: { id: string; lat: number; lng: number }[]) => void;
 
   addCustomPin: (
     lat: number,
@@ -271,6 +272,23 @@ export function SimulationProvider({
     setSimulatedStations(newSimulatedStations);
   }
 
+  function applySuggestedLocations(locations: { id: string; lat: number; lng: number }[]) {
+    const seed = Date.now();
+    setSimulatedStations(previous => {
+      const result = [...previous];
+      for (const [index, location] of locations.entries()) {
+        if (result.some(s => Math.abs(s.lat - location.lat) < 1e-6 && Math.abs(s.lng - location.lng) < 1e-6)) continue;
+        const id = seed + index;
+        result.push({ id, lat: location.lat, lng: location.lng, name: `Suggested air sensor ${result.filter(s => !s.isCustom).length + 1}`,
+          station_type: 0, sensorTier: "air", isCustom: false,
+          recommendation: createCustomRecommendation(location.lat, location.lng, [], id),
+          tierName: TIER_CONFIGS.air.name, tierBadge: TIER_CONFIGS.air.badge,
+          unitCost: TIER_CONFIGS.air.unitCost, annualOm: TIER_CONFIGS.air.annualOm });
+      }
+      return result;
+    });
+  }
+
   function clearSimulation() {
     setSimulatedStations([]);
   }
@@ -280,6 +298,7 @@ export function SimulationProvider({
       simulatedStations,
       simulateRecommendation,
       deployOptimizedPlan,
+      applySuggestedLocations,
       addCustomPin,
       updateCustomPin,
       updateStationPosition,

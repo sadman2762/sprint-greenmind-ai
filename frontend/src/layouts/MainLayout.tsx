@@ -2,13 +2,11 @@ import {
   AppBar,
   Avatar,
   Box,
-  Chip,
   CssBaseline,
   IconButton,
   Toolbar,
   Tooltip,
 } from "@mui/material";
-import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import ParkIcon from "@mui/icons-material/Park";
 import PaletteRoundedIcon from "@mui/icons-material/PaletteRounded";
 import { Outlet } from "react-router-dom";
@@ -128,47 +126,6 @@ export default function MainLayout() {
               </IconButton>
             </Tooltip>
 
-            <Chip
-              icon={<AutoAwesomeRoundedIcon sx={{ fontSize: 16 }} />}
-              label="AI Decision Support"
-              size="small"
-              sx={{
-                display: {
-                  xs: "none",
-                  sm: "flex",
-                },
-                height: 34,
-                px: 0.5,
-                color: isMidnight ? "#c084fc" : "#6d28d9",
-                backgroundColor: isMidnight
-                  ? "rgba(192, 132, 252, 0.12)"
-                  : "#f3e8ff",
-                border: isMidnight
-                  ? "1px solid rgba(192, 132, 252, 0.25)"
-                  : "1px solid #e9d5ff",
-                fontWeight: 600,
-                "& .MuiChip-icon": {
-                  color: isMidnight ? "#c084fc" : "#7c3aed",
-                },
-              }}
-            />
-
-            <Chip
-              label="Debrecen"
-              size="small"
-              sx={{
-                height: 34,
-                px: 0.75,
-                color: isMidnight ? "#79b998" : "#0f766e",
-                backgroundColor: isMidnight
-                  ? "rgba(0, 220, 130, 0.1)"
-                  : "#e8f7f3",
-                border: isMidnight
-                  ? "1px solid rgba(0, 220, 130, 0.3)"
-                  : "1px solid #cdece4",
-                fontWeight: 600,
-              }}
-            />
           </Box>
         </Toolbar>
       </AppBar>
