@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Box, Button, Card, Chip, Grid, LinearProgress, Slider, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Chip, Dialog, DialogContent, DialogTitle, Divider, Drawer, IconButton, Grid, LinearProgress, Slider, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { Circle, Marker, Tooltip } from "react-leaflet";
 import L from "leaflet";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
+import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import LocationAddress from "../../components/map/LocationAddress";
 import "leaflet/dist/leaflet.css";
 import { useSimulation } from "../../context/SimulationContext";
 import { getJointPlan, type JointPlan, type PlanMetrics, type PlanStation } from "../../services/jointPlanService";
@@ -68,6 +73,8 @@ function JointPlannerWorkspace({ basketOpen, setBasketOpen, stationCount, setSta
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [view, setView] = useState<"joint" | "independent" | "compare">("joint");
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
@@ -106,50 +113,69 @@ function JointPlannerWorkspace({ basketOpen, setBasketOpen, stationCount, setSta
   function stationMarker(station: PlanStation, index: number, baseline: boolean) {
     const color = baseline ? "#b45309" : "#6d28d9";
     const icon = L.divIcon({ className: "joint-plan-marker", html: `<span style="display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:${color};color:white;border:2px solid white;font-weight:700">${baseline ? "B" : ""}${index + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] });
-    return <Marker key={`${baseline}-${station.id}`} position={[station.lat, station.lng]} icon={icon} title={`${baseline ? "Baseline" : "Recommended"} station ${index + 1}`}><Tooltip>{baseline ? "Baseline" : "Recommended"} location {index + 1} · {station.lat.toFixed(4)}, {station.lng.toFixed(4)}</Tooltip></Marker>;
+    return <Marker key={`${baseline}-${station.id}`} position={[station.lat, station.lng]} icon={icon} title={`${baseline ? "Baseline" : "Recommended"} station ${index + 1}`} eventHandlers={{ click: () => setBasketOpen(true) }}><Tooltip>{baseline ? "Baseline" : "Recommended"} location {index + 1} · {station.lat.toFixed(4)}, {station.lng.toFixed(4)}</Tooltip></Marker>;
   }
-  return <Stack spacing={2} sx={{ pb: 4, minWidth: 0 }}>
-    <Box>
-      <Typography component="h1" variant="h4">Where to place your next sensors</Typography>
-      <Typography color="text.secondary" sx={{ mt: 0.5 }}>More coverage. Fewer overlapping locations.</Typography>
+  const focusPin = (lat: number, lng: number) => { setBasketOpen(false); setMobilePanelOpen(false); setBefore(false); setView("joint"); if (plan) setStep(plan.steps.length); setFocusLocation(previous => ({ lat, lng, token: (previous?.token ?? 0) + 1 })); };
+  return <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "332px minmax(0, 1fr)" }, height: "100%", minHeight: 0, overflow: "hidden", position: "relative" }}>
+    <Stack component="aside" aria-label="Plan your network" sx={{ bgcolor: "background.paper", borderRight: { md: "1px solid #e0e6e1" }, minHeight: 0, display: { xs: mobilePanelOpen ? "flex" : "none", md: "flex" }, position: { xs: "absolute", md: "relative" }, bottom: 0, width: { xs: "100%", md: "auto" }, maxHeight: { xs: "80%", md: "100%" }, height: { xs: "80%", md: "100%" }, zIndex: 1200, borderRadius: { xs: "16px 16px 0 0", md: 0 }, boxShadow: { xs: "0 -8px 40px #20332820", md: "none" } }}>
+      <Stack direction="row" sx={{ display: { xs: "flex", md: "none" }, px: 2, py: 1, alignItems: "center", justifyContent: "space-between", borderBottom: 1, borderColor: "divider" }}><Typography variant="subtitle2">Plan your network</Typography><IconButton aria-label="Close planning panel" onClick={() => setMobilePanelOpen(false)}><CloseRoundedIcon /></IconButton></Stack>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 2.5 }}>
+        <Typography variant="overline" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", color: "text.secondary" }}>AIR MONITORING</Typography>
+        <Typography component="h1" sx={{ fontSize: 25, lineHeight: 1.2, letterSpacing: "-0.8px", fontWeight: 650, mt: 0.5 }}>Build your network.</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2.5 }}>Find the next locations that reach more uncovered areas.</Typography>
+        <Button fullWidth variant="contained" endIcon={<ArrowForwardRoundedIcon />} disabled={invalid || loading} onClick={() => generate(3)} sx={{ height: 44 }}>Suggest 3 together</Button>
+        <Stack direction="row" sx={{ gap: 1, mt: 1 }}>
+          <Button fullWidth variant="outlined" disabled={invalid || loading} onClick={() => generate(1)} sx={{ fontSize: 12, whiteSpace: "nowrap", px: 0.75 }}>Suggest next 1</Button>
+          <Button fullWidth variant="outlined" disabled={invalid || loading} onClick={() => generate(2)} sx={{ fontSize: 12, whiteSpace: "nowrap", px: 0.75 }}>Suggest 2 together</Button>
+        </Stack>
+        <Button size="small" startIcon={<TuneRoundedIcon sx={{ fontSize: 16 }} />} onClick={() => setPreferencesOpen(true)} sx={{ color: "text.secondary", mt: 1, mb: 2 }}>Planning preferences</Button>
+        {loading && <Box role="status" sx={{ mb: 2 }}><Typography variant="caption" color="text.secondary">Finding the next useful locations…</Typography><LinearProgress sx={{ mt: 1, borderRadius: 2 }} /></Box>}
+        {error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={() => generate()}>Retry</Button>}>{error}</Alert>}
+        <Divider sx={{ mb: 2.5 }} />
+        <CoverageComparison simulation={simulation} plan={plan} before={before} onBeforeChange={value => { setMobilePanelOpen(false); setBefore(value); setView("joint"); if (plan) setStep(plan.steps.length); }} />
+        <Divider sx={{ my: 2.5 }} />
+        {plan ? <>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}><Typography component="h2" variant="subtitle2">Suggested locations</Typography><Chip label={`${plan.steps.length} new`} size="small" sx={{ color: "#6d28d9", bgcolor: "#f5f3ff" }} /></Stack>
+          <Stack spacing={1}>
+            {plan.steps.map((item, i) => <Box key={item.station.id} sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 2, bgcolor: "#fafbf9" }}>
+              <Stack direction="row" sx={{ alignItems: "center", gap: 1, mb: 0.75 }}><Box sx={{ width: 23, height: 23, borderRadius: "50%", bgcolor: "#6d28d9", color: "white", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700 }}>{i + 1}</Box><Typography variant="body2" sx={{ fontWeight: 650, flex: 1 }}>+{item.marginalKm2.toFixed(2)} km²</Typography><IconButton size="small" aria-label={`Show suggestion ${i + 1} on map`} onClick={() => focusPin(item.station.lat, item.station.lng)}><PlaceOutlinedIcon fontSize="small" /></IconButton></Stack>
+              <LocationAddress compact lat={item.station.lat} lng={item.station.lng} />
+            </Box>)}
+          </Stack>
+          {plan.steps.every(s => s.overlapFraction >= 0.8) && <Alert severity="warning" sx={{ mt: 1.5 }}>Small extra reach. Review the cost before adding more.</Alert>}
+          <Button size="small" onClick={() => setShowDetails(true)} sx={{ mt: 1.5, color: "text.secondary" }}>Compare methods &amp; results</Button>
+        </> : <Box sx={{ py: 1 }}>
+          <Typography variant="subtitle2">{simulatedStations.length ? `${simulatedStations.length} location${simulatedStations.length === 1 ? "" : "s"} in your plan` : "Your next step"}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{simulatedStations.length ? "New suggestions account for every location you’ve chosen." : "Request suggestions, or use Add sensor to place a location yourself."}</Typography>
+        </Box>}
+      </Box>
+      <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+        <Button fullWidth variant={plan ? "contained" : "outlined"} onClick={() => setBasketOpen(true)} endIcon={<ArrowForwardRoundedIcon />}>Location basket · {simulatedStations.length + (plan?.steps.length ?? 0)}</Button>
+        <Typography variant="caption" sx={{ display: "block", textAlign: "center", mt: 1, color: "text.secondary", fontSize: 10 }}>Planning estimates · Saved in this session</Typography>
+      </Box>
+    </Stack>
+    <Box component="section" role="region" aria-label="Plan comparison map" ref={mapRef} sx={{ minWidth: 0, minHeight: 0, height: "100%", position: "relative" }}>
+        <CityMap workspace compact focusLocation={focusLocation} includePlanned={!before} onStartPlacement={() => setBefore(false)} frameStations={frameStations} coverageStations={coverageStations}
+          planningCaption={before ? "Before · installed sensors only" : plan ? `${view === "independent" ? "Baseline" : step === 0 ? "Current" : "Recommended"} air coverage · ${coverageStations.length} proposed ${coverageStations.length === 1 ? "station" : "stations"} · use + / − to zoom` : "Green: near · yellow: mid-range · red: monitoring gap · use + / − to zoom"}>
+          {focusLocation && !before && <Circle center={[focusLocation.lat, focusLocation.lng]} radius={100} interactive={false} pathOptions={{ color: "#6d28d9", weight: 3, fillOpacity: 0.15 }} />}
+          {plan && !before && view !== "joint" && plan.independentPlan.stations.map((s, i) => <Circle key={`baseline-${s.id}`} center={[s.lat, s.lng]} radius={2000} interactive={false} pathOptions={{ color: "#b45309", fillOpacity: 0.04, dashArray: "5 5" }}>{stationMarker(s, i, true)}</Circle>)}
+          {plan && !before && view !== "independent" && plan.jointPlan.stations.slice(0, step).map((s, i) => <Circle key={`joint-${s.id}`} center={[s.lat, s.lng]} radius={2000} interactive={false} pathOptions={{ color: "#6d28d9", fillOpacity: 0.04 }}>{stationMarker(s, i, false)}</Circle>)}
+        </CityMap>
     </Box>
-    <Card variant="outlined" sx={{ p: 2 }}>
-      <Typography variant="subtitle2" sx={{ mb: 1 }}>Add air sensors</Typography>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button variant={stationCount === 3 ? "contained" : "outlined"} disabled={invalid || loading} onClick={() => generate(3)}>Suggest 3 together</Button>
-        <Button variant={stationCount === 1 ? "contained" : "outlined"} disabled={invalid || loading} onClick={() => generate(1)}>Suggest next 1</Button>
-        <Button variant={stationCount === 2 ? "contained" : "outlined"} disabled={invalid || loading} onClick={() => generate(2)}>Suggest 2 together</Button>
-      </Stack>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Suggestions include your chosen locations. Review them in the basket before applying.</Typography>
-      <Box component="details" sx={{ mt: 1 }}>
-        <Typography component="summary" variant="body2" sx={{ cursor: "pointer", color: "text.secondary" }}>Adjust planning preferences</Typography>
-        <Grid container spacing={3} sx={{ mt: 1, alignItems: "center" }}>
-          <Grid size={{ xs: 12, sm: 7 }}><Typography variant="subtitle2">Give more priority to areas with higher estimated air pollution</Typography>
+    {!mobilePanelOpen && <Stack direction="row" sx={{ display: { xs: "flex", md: "none" }, position: "absolute", bottom: 24, left: 16, right: 16, gap: 1, zIndex: 1100 }}><Button variant="contained" sx={{ flex: 1, height: 44, boxShadow: "0 4px 16px #20332824" }} onClick={() => setMobilePanelOpen(true)}>Plan sensors</Button><Button variant="outlined" sx={{ bgcolor: "background.paper" }} onClick={() => setBasketOpen(true)}>Basket · {simulatedStations.length + (plan?.steps.length ?? 0)}</Button></Stack>}
+    <Dialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>Planning preferences<IconButton aria-label="Close planning preferences" onClick={() => setPreferencesOpen(false)}><CloseRoundedIcon /></IconButton></DialogTitle>
+      <DialogContent>        <Grid container spacing={3} sx={{ mt: 1, alignItems: "center" }}>
+          <Grid size={12}><Typography variant="subtitle2">Give more priority to areas with higher estimated air pollution</Typography>
             <Slider value={environmentalWeight} min={0} max={3} step={0.25} valueLabelDisplay="auto" aria-label="Environmental importance" onChange={(_, value) => { reset(); setEnvironmentalWeight(value as number); }} />
             <Typography variant="caption" color="text.secondary">At zero, only extra area matters. Moving right gives pollution estimates more influence.</Typography>
           </Grid>
-          <Grid size={{ xs: 12, sm: 5 }}><TextField size="small" label="Keep new sensors at least this far apart (km)" type="number" value={separation} error={invalid} helperText={invalid ? "Enter a distance from 0 to 5 km." : "Avoid placing the new sensors too close together."} onChange={(event) => { reset(); setSeparation(event.target.value); }} slotProps={{ htmlInput: { min: 0, max: 5, step: 0.25 } }} fullWidth /></Grid>
-        </Grid>
-      </Box>
-    </Card>
-    {loading && <Box role="status"><Typography variant="body2">Finding locations that add coverage without repeating the same area…</Typography><LinearProgress /></Box>}
-    {error && <Alert severity="error" action={<Button color="inherit" onClick={() => generate()}>Retry</Button>}>{error}</Alert>}
-    <Box ref={mapRef} sx={{ scrollMarginTop: 90 }}>
-      <CoverageComparison simulation={simulation} plan={plan} before={before} onBeforeChange={value => { setBefore(value); setView("joint"); if (plan) setStep(plan.steps.length); }} />
-    </Box>
-    <Box component="section" aria-label="Monitoring map and legend">
-      <Card variant="outlined" sx={{ p: 1.5, mb: 1 }}>
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-          <Box><Typography component="h2" variant="subtitle1" sx={{ fontWeight: 600 }}>{plan ? `${plan.steps.length} suggestion${plan.steps.length === 1 ? "" : "s"} · +${plan.jointPlan.metrics.addedKm2.toFixed(2)} km²` : "Your monitoring plan"}</Typography>
-            <Typography variant="caption" color="text.secondary">{plan ? "Purple pins are ready for review." : "Add a manual pin or request suggestions."}</Typography></Box>
-          <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
-            {plan && <Button size="small" aria-expanded={showDetails} aria-controls="case-study-details" onClick={() => { setShowDetails(!showDetails); setBefore(false); setView("joint"); setStep(plan.steps.length); }}>{showDetails ? "Hide case-study details" : "Case-study details"}</Button>}
-            <Button variant="contained" onClick={() => setBasketOpen(true)}>Location basket · {simulatedStations.length + (plan?.steps.length ?? 0)}</Button>
-          </Stack>
-        </Stack>
-        {plan && plan.steps.every(s => s.overlapFraction >= 0.8) && <Alert severity="warning" sx={{ mt: 1, py: 0 }}>Small additional reach: these {plan.steps.length} sensors add only {plan.jointPlan.metrics.addedKm2.toFixed(2)} km². Review the cost in your basket.</Alert>}
-        {plan && showDetails && <Stack spacing={1.5} sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider" }}>
-          <Typography variant="subtitle2">Compare the networks</Typography>
+          <Grid size={12}><TextField size="small" label="Keep new sensors at least this far apart (km)" type="number" value={separation} error={invalid} helperText={invalid ? "Enter a distance from 0 to 5 km." : "Avoid placing the new sensors too close together."} onChange={(event) => { reset(); setSeparation(event.target.value); }} slotProps={{ htmlInput: { min: 0, max: 5, step: 0.25 } }} fullWidth /></Grid>
+        </Grid></DialogContent>
+    </Dialog>
+    <Drawer anchor="right" open={showDetails && Boolean(plan)} onClose={() => { setShowDetails(false); setView("joint"); if (plan) setStep(plan.steps.length); }} sx={{ zIndex: 1400 }} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 500 }, maxWidth: "100%", p: 2.5 } } }}>
+      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}><Typography variant="h6">Plan evaluation</Typography><IconButton aria-label="Close plan evaluation" onClick={() => { setShowDetails(false); setView("joint"); if (plan) setStep(plan.steps.length); }}><CloseRoundedIcon /></IconButton></Stack>
+      {plan && <Stack spacing={2} id="case-study-details">          <Typography variant="subtitle2">Compare the networks</Typography>
           <Stack direction="row" sx={{ gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
             <ToggleButtonGroup exclusive size="small" value={view} onChange={(_, value) => { if (value) { setBefore(false); setView(value); } }} aria-label="Plan comparison">
               <ToggleButton value="independent">Baseline</ToggleButton><ToggleButton value="joint">Recommended</ToggleButton><ToggleButton value="compare">Both</ToggleButton>
@@ -164,25 +190,12 @@ function JointPlannerWorkspace({ basketOpen, setBasketOpen, stationCount, setSta
             <Chip size="small" label={`1–${plan.steps.length} · Recommended locations`} sx={{ color: "#6d28d9", bgcolor: "#f5f3ff" }} />
             <Typography variant="caption" color="text.secondary">{view === "compare" ? "In Both view, shading follows the recommended steps." : "Shading includes the displayed plan."}</Typography>
           </Stack>
-        </Stack>}
-      </Card>
-      <Box role="region" aria-label="Plan comparison map">
-        <CityMap compact focusLocation={focusLocation} includePlanned={!before} frameStations={frameStations} coverageStations={coverageStations}
-          planningCaption={before ? "Before · installed sensors only" : plan ? `${view === "independent" ? "Baseline" : step === 0 ? "Current" : "Recommended"} air coverage · ${coverageStations.length} proposed ${coverageStations.length === 1 ? "station" : "stations"} · use + / − to zoom` : "Green: near · yellow: mid-range · red: monitoring gap · use + / − to zoom"}>
-          {focusLocation && !before && <Circle center={[focusLocation.lat, focusLocation.lng]} radius={100} interactive={false} pathOptions={{ color: "#6d28d9", weight: 3, fillOpacity: 0.15 }} />}
-          {plan && !before && view !== "joint" && plan.independentPlan.stations.map((s, i) => <Circle key={`baseline-${s.id}`} center={[s.lat, s.lng]} radius={2000} interactive={false} pathOptions={{ color: "#b45309", fillOpacity: 0.04, dashArray: "5 5" }}>{stationMarker(s, i, true)}</Circle>)}
-          {plan && !before && view !== "independent" && plan.jointPlan.stations.slice(0, step).map((s, i) => <Circle key={`joint-${s.id}`} center={[s.lat, s.lng]} radius={2000} interactive={false} pathOptions={{ color: "#6d28d9", fillOpacity: 0.04 }}>{stationMarker(s, i, false)}</Circle>)}
-        </CityMap>
-      </Box>
-    </Box>
-    {plan && <>
-      {showDetails && <Stack id="case-study-details" spacing={2} component="section" aria-label="Case-study details">
         <Typography component="h2" variant="h6">How the recommendation was evaluated</Typography>
         <Typography variant="body2" color="text.secondary">For the case study, compare choosing each location separately with choosing locations together. The recommended plan recalculates uncovered area after every addition.</Typography>
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 4 }}><MetricCard title="Existing network" metrics={plan.existingMetrics} color="#64748b" /></Grid>
-          <Grid size={{ xs: 12, md: 4 }}><MetricCard title="Independent top-k" metrics={plan.independentPlan.metrics} color="#b45309" /></Grid>
-          <Grid size={{ xs: 12, md: 4 }}><MetricCard title="Recommended network" metrics={plan.jointPlan.metrics} color="#6d28d9" /></Grid>
+          <Grid size={12}><MetricCard title="Existing network" metrics={plan.existingMetrics} color="#64748b" /></Grid>
+          <Grid size={12}><MetricCard title="Independent top-k" metrics={plan.independentPlan.metrics} color="#b45309" /></Grid>
+          <Grid size={12}><MetricCard title="Recommended network" metrics={plan.jointPlan.metrics} color="#6d28d9" /></Grid>
         </Grid>
         <Card variant="outlined" sx={{ p: 2.5 }}>
           <Typography component="h3" variant="h6">{current ? `After adding location ${step}` : "Before adding any new sensors"}</Typography>
@@ -205,8 +218,8 @@ function JointPlannerWorkspace({ basketOpen, setBasketOpen, stationCount, setSta
             {[...plan.assumptions, ...plan.warnings].map((text) => <Typography key={text} variant="body2" sx={{ mt: 1 }}>{text}</Typography>)}
           </Box>
         </Card>
-      </Stack>}
-    </>}
-    {basketOpen && <LocationBasket open onDiscard={reset} onClose={() => setBasketOpen(false)} plan={plan} onDownload={() => { if (plan) downloadBrief(plan); }} onShow={(lat, lng) => { setBasketOpen(false); setBefore(false); setView("joint"); if (plan) setStep(plan.steps.length); setFocusLocation({ lat, lng, token: Date.now() }); }} />}
-  </Stack>;
+</Stack>}
+    </Drawer>
+    {basketOpen && <LocationBasket open onDiscard={reset} onClose={() => setBasketOpen(false)} plan={plan} onDownload={() => { if (plan) downloadBrief(plan); }} onShow={focusPin} />}
+  </Box>;
 }

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
-import { CircleMarker } from "react-leaflet";
+import { Rectangle } from "react-leaflet";
 
-import { cityGrid } from "../../services/gridService";
+import { cityGrid, GRID_STEP } from "../../services/gridService";
 import type { Station } from "../../types/station";
 import { findNearestStation } from "../../utils/nearestStation";
 import type { SensorTier } from "../../types/budget";
@@ -64,10 +64,9 @@ const CoverageHeatmap = React.memo(function CoverageHeatmap({
   return (
     <>
       {heatmapPoints.map((point) => (
-        <CircleMarker
+        <Rectangle
           key={`heat-${point.id}`}
-          center={[point.lat, point.lng]}
-          radius={8}
+          bounds={[[point.lat - GRID_STEP / 2, point.lng - GRID_STEP / 2], [point.lat + GRID_STEP / 2, point.lng + GRID_STEP / 2]]}
           interactive={false}
           pathOptions={{
             color: point.color,

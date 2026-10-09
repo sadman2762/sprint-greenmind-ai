@@ -1,7 +1,8 @@
 import "leaflet/dist/leaflet.css";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Card, CircularProgress, Collapse, FormControlLabel, Grid, Snackbar, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Box, Button, Card, CircularProgress, Collapse, FormControlLabel, Grid, Popover, Snackbar, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography, useMediaQuery, useTheme } from "@mui/material";
 import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
+import LayersOutlinedIcon from "@mui/icons-material/LayersOutlined";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import { Circle, MapContainer, Marker, Pane, TileLayer, Tooltip } from "react-leaflet";
 import MapInspectorProvider from "../../context/MapInspectorProvider";
@@ -95,14 +96,17 @@ interface CityMapProps {
   coverageStations?: Station[];
   frameStations?: Station[];
   compact?: boolean;
+  workspace?: boolean;
+  onStartPlacement?: () => void;
   planningCaption?: string;
   includePlanned?: boolean;
   focusLocation?: { lat: number; lng: number; token: number };
 }
 
-function CityMapWorkspace({ children, coverageStations = EMPTY_STATIONS, frameStations = EMPTY_STATIONS, compact = false, planningCaption, includePlanned = true, focusLocation }: CityMapProps) {
+function CityMapWorkspace({ children, coverageStations = EMPTY_STATIONS, frameStations = EMPTY_STATIONS, compact = false, workspace = false, onStartPlacement, planningCaption, includePlanned = true, focusLocation }: CityMapProps) {
   const { selection } = useMapInspector();
   const [resetKey, setResetKey] = useState(0);
+  const [layersAnchor, setLayersAnchor] = useState<HTMLElement | null>(null);
   const [stations, setStations] = useState<Station[]>([]);
   const [trafficLocations, setTrafficLocations] = useState<TrafficLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,54 +158,53 @@ function CityMapWorkspace({ children, coverageStations = EMPTY_STATIONS, frameSt
     else setShowHeatmap(true);
   }
 
-  if (loading) return <Card sx={{ mt: 3, p: 6, textAlign: "center" }}><CircularProgress aria-label="Loading monitoring map" /></Card>;
+  if (loading) return <Card sx={{ height: workspace ? "100%" : "auto", display: "grid", placeItems: "center", p: 6 }}><CircularProgress aria-label="Loading monitoring map" /></Card>;
   if (error) return <Alert severity="error" sx={{ mt: 3 }} action={<Button color="inherit" onClick={() => { setError(""); setLoading(true); setLoadAttempt((value) => value + 1); }}>Retry map</Button>}>{error}</Alert>;
 
   return (
-    <Card variant="outlined" sx={{ mt: compact ? 0 : 3, borderRadius: 3, overflow: "hidden" }}>
+    <Card variant="outlined" sx={{ mt: compact ? 0 : 3, borderRadius: workspace ? 0 : 3, border: workspace ? 0 : undefined, overflow: "hidden", height: workspace ? "100%" : undefined, display: "flex", flexDirection: "column" }}>
       {showTraffic && trafficError && <Alert severity="warning">{trafficError}</Alert>}
-      {/* 1. Unified Map Control Toolbar (Placed cleanly ABOVE the map to prevent ANY overlap) */}
-      <Stack spacing={compact ? 1 : 2} sx={{ p: compact ? 1.5 : 2, borderBottom: 1, borderColor: "divider" }}>
-        {/* Left: Branding & Custom Pin Placer */}
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Debrecen monitoring network</Typography>
-            <Typography variant="caption" color="text.secondary">{view === "air" && planningCaption ? planningCaption : overview ? "All networks · existing and planned locations" : `${COVERAGE_CATEGORIES.find((item) => item.value === view)!.label} network · distance-based coverage`}</Typography>
-          </Box>
-          <Button variant={isPlacingCustomPin ? "contained" : "outlined"} size="small" startIcon={<AddLocationAltIcon />} onClick={() => setIsPlacingCustomPin((value) => !value)}>
-            {isPlacingCustomPin ? "Cancel placement" : "Add sensor"}
-          </Button>
-        </Stack>
-        {/* Tier Selector Chips */}
-        <Collapse in={isPlacingCustomPin} timeout={reducedMotion ? 0 : theme.transitions.duration.shorter} unmountOnExit>
-          <Stack spacing={1}>
-            <Typography variant="caption" color="text.secondary">Sensor type to place</Typography>
-            <ToggleButtonGroup exclusive size="small" value={customPinTier} aria-label="Sensor type to place" onChange={(_, value: SensorTier | null) => { if (value) setCustomPinTier(value); }} sx={{ flexWrap: "wrap" }}>
-              {COVERAGE_CATEGORIES.map(({ value, label }) => <ToggleButton key={value} value={value} aria-label={`Place ${label.toLowerCase()} sensor`} sx={{ textTransform: "none" }}>{label} · €{(TIER_CONFIGS[value].unitCost / 1000).toFixed(1)}k</ToggleButton>)}
-            </ToggleButtonGroup>
-          </Stack>
-        </Collapse>
-        {/* Right: Map Layers Toggles */}
-        <Stack direction="row" useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
-          <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={showStations} onChange={(event) => setShowStations(event.target.checked)} />} label={<Typography variant="caption">Stations</Typography>} />
-          {!overview && <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={showHeatmap} onChange={(event) => setShowHeatmap(event.target.checked)} />} label={<Typography variant="caption">Monitoring coverage</Typography>} />}
-          <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={showTraffic} onChange={(event) => setShowTraffic(event.target.checked)} />} label={<Typography variant="caption">DKV Transit</Typography>} />
-          <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={showCoverageCircles} onChange={(event) => setShowCoverageCircles(event.target.checked)} />} label={<Typography variant="caption">Coverage outlines</Typography>} />
-          <Button size="small" startIcon={<CenterFocusStrongIcon />} onClick={() => setResetKey((value) => value + 1)}>Reset view</Button>
+      <Stack direction="row" sx={{ px: 2, py: 1.25, minHeight: 60, borderBottom: 1, borderColor: "divider", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap", flexShrink: 0 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2">{overview ? "All monitoring networks" : `${COVERAGE_CATEGORIES.find(item => item.value === view)?.label ?? "Air"} monitoring`}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{view === "air" && planningCaption ? planningCaption.split(" · use")[0] : "Explore stations and coverage"}</Typography>
+        </Box>
+        <Stack direction="row" sx={{ gap: 0.75 }}>
+          <Button size="small" startIcon={<LayersOutlinedIcon />} aria-expanded={Boolean(layersAnchor)} onClick={event => setLayersAnchor(event.currentTarget)} sx={{ color: "text.secondary" }}>Layers</Button>
+          <Button variant={isPlacingCustomPin ? "contained" : "outlined"} size="small" startIcon={<AddLocationAltIcon />} onClick={() => { if (!isPlacingCustomPin) onStartPlacement?.(); setIsPlacingCustomPin(value => !value); }}>{isPlacingCustomPin ? "Cancel placement" : "Add sensor"}</Button>
         </Stack>
       </Stack>
+      <Popover open={Boolean(layersAnchor)} anchorEl={layersAnchor} onClose={() => setLayersAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
+        <Stack sx={{ p: 2, minWidth: 240, gap: 0.5 }}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Map layers</Typography>
+          <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={showStations} onChange={event => setShowStations(event.target.checked)} />} label={<Typography variant="body2">Stations</Typography>} />
+          {!overview && <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={showHeatmap} onChange={event => setShowHeatmap(event.target.checked)} />} label={<Typography variant="body2">Monitoring coverage</Typography>} />}
+          <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={showTraffic} onChange={event => setShowTraffic(event.target.checked)} />} label={<Typography variant="body2">DKV Transit</Typography>} />
+          <FormControlLabel sx={{ m: 0 }} control={<Switch size="small" checked={showCoverageCircles} onChange={event => setShowCoverageCircles(event.target.checked)} />} label={<Typography variant="body2">Coverage outlines</Typography>} />
+          <Button size="small" startIcon={<CenterFocusStrongIcon />} onClick={() => { setResetKey(value => value + 1); setLayersAnchor(null); }} sx={{ mt: 1 }}>Reset view</Button>
+        </Stack>
+      </Popover>
+      <Collapse in={isPlacingCustomPin} timeout={reducedMotion ? 0 : theme.transitions.duration.shorter} unmountOnExit sx={{ flexShrink: 0 }}>
+        <Stack sx={{ p: 1.5, gap: 1 }}>
+          <ToggleButtonGroup exclusive size="small" value={customPinTier} aria-label="Sensor type to place" onChange={(_, value: SensorTier | null) => { if (value) setCustomPinTier(value); }}>
+            {COVERAGE_CATEGORIES.map(({ value, label }) => <ToggleButton key={value} value={value} aria-label={`Place ${label.toLowerCase()} sensor`}>{label}</ToggleButton>)}
+          </ToggleButtonGroup>
+        </Stack>
+      </Collapse>
       {/* Pin Mode Helper Banner */}
-      {isPlacingCustomPin && <Typography component="p" variant="body2" sx={{ m: 0, px: 2, py: 1, bgcolor: "action.hover" }}>Click the map to place a {activeTier.name.toLowerCase()}. Drag the marker to adjust.</Typography>}
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: selection ? "minmax(0, 2fr) minmax(0, 1fr)" : "minmax(0, 1fr)" }, alignItems: "start" }}>
+      {isPlacingCustomPin && <Typography component="p" variant="body2" sx={{ m: 0, px: 2, py: 1, bgcolor: "action.hover" }}>Click the map to place this {activeTier.name.toLowerCase()}. Drag the marker to adjust.</Typography>}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: selection ? "minmax(0, 1fr) 340px" : "minmax(0, 1fr)" }, alignItems: "stretch", flex: workspace ? 1 : undefined, minHeight: 0, position: "relative" }}>
         {/* 2. Map Container with 100% Unobstructed Surface */}
         <Box sx={{
-          position: "relative", minWidth: 0, height: compact ? { xs: 400, md: "clamp(380px, 48vh, 540px)" } : { xs: "60dvh", md: "68vh" }, minHeight: theme.spacing(40),
+          position: "relative", minWidth: 0, height: workspace ? "100%" : compact ? { xs: 400, md: "clamp(380px, 48vh, 540px)" } : { xs: "60dvh", md: "68vh" }, minHeight: workspace ? 0 : theme.spacing(40),
+          "& .leaflet-tile-pane": { filter: "saturate(0.38) contrast(0.94) brightness(1.04)" },
+          "& .leaflet-control-zoom": { border: "1px solid #dce3de", borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 8px #20332814" },
           "& .leaflet-tooltip": { width: "max-content", maxWidth: theme.spacing(32), whiteSpace: "normal" },
           "& .map-marker-symbol": { boxShadow: `0 0 0 2px ${theme.palette.background.paper}` },
           "& .leaflet-marker-icon.is-selected": { boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 0 0 5px ${theme.palette.primary.main}`, borderRadius: "50%" },
           "& .leaflet-marker-icon:focus-visible": { outline: `3px solid ${theme.palette.primary.main}`, outlineOffset: 3, borderRadius: "50%" },
         }}>
-          <MapContainer center={[47.5316, 21.6273]} zoom={10} minZoom={9} maxZoom={16} maxBoundsViscosity={0.3} scrollWheelZoom={false} preferCanvas style={{ height: "100%", width: "100%" }}>
+          <MapContainer center={[47.5316, 21.6273]} zoom={10} minZoom={9} maxZoom={16} maxBoundsViscosity={0.3} scrollWheelZoom={workspace} preferCanvas style={{ height: "100%", width: "100%" }}>
             <TileLayer attribution="© OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <DebrecenBoundary />
             <MapBoundsController focusLocation={focusLocation} stations={mapFrameStations} resetStations={[...mapFrameStations, ...simulatedStations]} resetKey={resetKey} />
@@ -219,11 +222,11 @@ function CityMapWorkspace({ children, coverageStations = EMPTY_STATIONS, frameSt
           <MapLegend additionalAirPlanCount={coverageStations.length} showStations={showStations} showCoverage={showHeatmap} showTraffic={showTraffic} showRadius={showCoverageCircles}
             overview={overview} coverageCategory={coverageCategory} visibleBands={visibleBands} onViewChange={changeView}
             onBandsChange={(bands) => { setVisibleBands(bands); setShowHeatmap(true); }} onShowCoverage={() => setShowHeatmap(true)}
-            onAddCoveragePin={(category) => { setCustomPinTier(category); setIsPlacingCustomPin(true); }} stations={stations} simulatedStations={includePlanned ? simulatedStations : []} />
+            onAddCoveragePin={(category) => { onStartPlacement?.(); setCustomPinTier(category); setIsPlacingCustomPin(true); }} stations={stations} simulatedStations={includePlanned ? simulatedStations : []} />
         </Box>
         {/* 3. Selected Station Deep Telemetry Inspector Dock */}
         {/* Wide Telemetry Metrics Grid */}
-        <MapInspectorPanel compact={compact} />
+        <MapInspectorPanel compact={compact} workspace={workspace} />
       </Box>
       <Snackbar open={Boolean(notification)} autoHideDuration={4500} onClose={() => setNotification(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         {notification ? <Alert severity={notification.severity} onClose={() => setNotification(null)}>{notification.message}</Alert> : undefined}

@@ -15,10 +15,10 @@ const MIN_LNG = 21.41611;
 const MAX_LNG = 21.86276;
 
 /*
- * 0.007 degrees (~700m resolution) provides seamless visual
- * coverage while delivering blazing fast 60fps rendering.
+ * Sample the distance layer at 0.007-degree intervals.
+ * Rendering uses geographic cells so coverage does not change size with zoom.
  */
-const GRID_STEP = 0.007;
+export const GRID_STEP = 0.007;
 
 function generateCityGrid(): GridPoint[] {
   const points: GridPoint[] = [];

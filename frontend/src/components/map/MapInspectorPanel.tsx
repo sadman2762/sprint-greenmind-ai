@@ -5,7 +5,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMapInspector } from "../../context/mapInspectorState";
 
-export default function MapInspectorPanel({ compact = false }: { compact?: boolean }) {
+export default function MapInspectorPanel({ compact = false, workspace = false }: { compact?: boolean; workspace?: boolean }) {
   const { selection, setHost, close } = useMapInspector();
   const [expanded, setExpanded] = useState(false);
   const headingId = useId();
@@ -24,8 +24,10 @@ export default function MapInspectorPanel({ compact = false }: { compact?: boole
       sx={{
         minWidth: 0,
         minHeight: 0,
-        height: { xs: "auto", md: compact ? "clamp(380px, 48vh, 540px)" : "68vh" },
-        maxHeight: { xs: "50dvh", md: compact ? "clamp(380px, 48vh, 540px)" : "68vh" },
+        position: workspace ? { xs: "absolute", md: "relative" } : undefined,
+        bottom: 0, left: 0, right: 0, zIndex: 1250,
+        height: workspace ? { xs: "auto", md: "100%" } : { xs: "auto", md: compact ? "clamp(380px, 48vh, 540px)" : "68vh" },
+        maxHeight: workspace ? { xs: "85%", md: "100%" } : { xs: "50dvh", md: compact ? "clamp(380px, 48vh, 540px)" : "68vh" },
         overflowY: "auto",
         overscrollBehavior: "contain",
         borderLeft: { xs: 0, md: 1 },

@@ -27,14 +27,14 @@ test("joint planner recovers, shows each step, compares on one map, exports and 
       else await route.abort();
     });
     await page.goto(`${origin}/recommendations`);
-    await page.getByRole("region", { name: "Monitoring map and legend" }).getByRole("button", { name: "Air coverage", exact: true }).waitFor();
+    await page.getByRole("region", { name: "Plan comparison map" }).getByRole("button", { name: "Air coverage", exact: true }).waitFor();
     await page.getByRole("button", { name: "Gap coverage band" }).waitFor();
     assert.equal(await page.locator(".leaflet-container").count(), 1);
     await page.getByRole("button", { name: "Suggest 3 together", exact: true }).click();
     await page.getByText("Synthetic planning failure").waitFor();
     fail = false;
     await page.getByRole("button", { name: "Retry", exact: true }).click();
-    await page.getByRole("heading", { name: /^3 suggestions/ }).waitFor();
+    await page.getByRole("heading", { name: "Suggested locations" }).waitFor();
     assert.equal(await page.getByRole("table", { name: "Candidate ranking" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Baseline", exact: true }).count(), 0);
     assert.equal(await page.locator(".leaflet-container").count(), 1);
@@ -43,7 +43,7 @@ test("joint planner recovers, shows each step, compares on one map, exports and 
     assert.equal(await page.locator(".joint-plan-marker").count(), 0);
     await page.getByRole("button", { name: "After · chosen + suggested", exact: true }).click();
     assert.equal(await page.locator(".joint-plan-marker").count(), 3);
-    await page.getByRole("button", { name: "Case-study details", exact: true }).click();
+    await page.getByRole("button", { name: "Compare methods & results", exact: true }).click();
     await page.getByText("Compare the networks", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Existing", exact: true }).click();
     assert.equal(await page.locator(".joint-plan-marker").count(), 0);
@@ -56,7 +56,7 @@ test("joint planner recovers, shows each step, compares on one map, exports and 
     assert.equal(await page.locator(".joint-plan-marker").count(), 4);
     assert.equal(await comparisonMap.locator(".leaflet-map-pane").getAttribute("style"), centerBefore);
     await page.getByRole("button", { name: /^Step 3/ }).click();
-    await page.getByRole("button", { name: "Hide case-study details", exact: true }).click();
+    await page.getByRole("button", { name: "Close plan evaluation", exact: true }).click();
     assert.equal(await page.locator(".joint-plan-marker").count(), 3);
     assert.equal(await page.getByRole("table", { name: "Candidate ranking" }).count(), 0);
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -78,7 +78,7 @@ test("joint planner recovers, shows each step, compares on one map, exports and 
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: "/private/tmp/greenmind-joint-planner-mobile.png", fullPage: true });
-    await page.getByRole("button", { name: /^Location basket/ }).click();
+    await page.getByRole("button", { name: /^Basket ·/ }).click();
     await page.getByRole("button", { name: "Discard suggestions", exact: true }).click();
     assert.equal(await page.locator(".joint-plan-marker").count(), 0);
     assert.deepEqual(errors, []);
