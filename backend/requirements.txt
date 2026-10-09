@@ -6,3 +6,7 @@ matplotlib
 jupyter
 openpyxl
 scikit-learn
+scipy
+openai
+python-dotenv
+pytest
