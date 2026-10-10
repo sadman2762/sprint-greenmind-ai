@@ -1,3 +1,4 @@
+import { useCityView } from "../../context/cityView";
 import { useVoiceActions } from "../../voice/actionContext";
 import AnimatedCoverage from "../../components/map/AnimatedCoverage";
 import OptimizationReveal from "./OptimizationReveal";
@@ -10,7 +11,6 @@ import { Alert, Box, Button, Card, Chip, Dialog, DialogContent, DialogTitle, Div
 import { Circle, Marker, Popup, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import LocationAddress from "../../components/map/LocationAddress";
@@ -87,6 +87,8 @@ interface PlannerSettings {
   separation: string; setSeparation: (distance: string) => void;
 }
 function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, setCategory, basketOpen, setBasketOpen, stationCount, setStationCount, environmentalWeight, setEnvironmentalWeight, separation, setSeparation }: PlannerSettings) {
+  const { city } = useCityView();
+  const transportMode = city === "budapest";
   const { simulatedStations, setCustomPinTier, setIsPlacingCustomPin, applySuggestedLocations } = useSimulation();
   const { radii, overrides, setOverride } = useRanges();
   const [suggestionRadius, setSuggestionRadius] = useState(radii[category]);
@@ -170,6 +172,14 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
   }
   const focusPin = (lat: number, lng: number) => { setPlaying(false); setBasketOpen(false); setMobilePanelOpen(false); setBefore(false); setView("joint"); if (plan) setStep(plan.steps.length); setFocusLocation(previous => ({ lat, lng, token: (previous?.token ?? 0) + 1 })); };
   useVoiceActions("planner", {
+    open_panel: c => { (c.panel === "preferences" ? setPreferencesOpen : setMobilePanelOpen)(c.visible!); return { ok: true, message: `${c.panel} panel ${c.visible ? "opened" : "closed"}.` }; },
+    set_planning_preferences: c => {
+      if (loading || editing) return { ok: false, message: "Wait for the current calculation to finish." };
+      reset();
+      if (c.environmentalWeight !== undefined) setEnvironmentalWeight(c.environmentalWeight);
+      if (c.minSeparationKm !== undefined) setSeparation(String(c.minSeparationKm));
+      return { ok: true, message: "Planning preferences updated. Previous unapplied suggestions discarded." };
+    },
     suggest_sensors: async (c, signal) => {
       if (loading || editing || invalid || !suggestionRadiusValid) return { ok: false, message: "Finish the current request or correct planning settings first." };
       return generate(c.count!, signal);
@@ -186,6 +196,7 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
     open_basket: c => { setBasketOpen(c.visible!); return { ok: true, message: c.visible ? "Location basket opened." : "Location basket closed." }; },
     select_step: c => { if (!plan || c.index! > plan.steps.length) return { ok: false, message: "That planning step does not exist." }; selectStep(c.index!); return { ok: true, message: `Showing step ${c.index}.` }; },
     set_comparison: c => {
+      setPlaying(false);
       setPlaying(false);
       if ((c.view === "original" || c.view === "both") && (!plan || plan.userAdjusted || category !== "air" || !plan.originalPlan.metrics)) return { ok: false, message: "Original comparison requires an unedited air plan." };
       setBefore(c.view === "before"); setView(c.view === "original" ? "original" : c.view === "both" ? "compare" : "joint");
@@ -204,12 +215,12 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
       focusPin(station.lat, station.lng); return { ok: true, message: `Showing suggestion ${c.index}.` };
     },
     export_plan: () => { if (!plan || editing || loading) return { ok: false, message: "Generate a completed plan before exporting." }; downloadBrief(plan); return { ok: true, message: "Placement plan download started." }; },
-  }, () => ({ category, loading, editing, before, method: view, step, suggestionRadiusKm: suggestionRadius,
+  }, () => ({ category, loading, editing, before, environmentalWeight, minSeparationKm: Number(separation), preferencesOpen, method: view, step, suggestionRadiusKm: suggestionRadius,
     suggestions: plan?.steps.map((s, i) => ({ index: i + 1, ...s.station, addedKm2: s.marginalKm2 })) ?? [],
     metrics: plan?.jointPlan.metrics ?? null, existingMetrics: plan?.existingMetrics ?? null,
     chosenCount: simulatedStations.length, automaticWaterPlanning: false }));
-  return <Box className="planning-workspace" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "288px minmax(0, 1fr)", xl: "304px minmax(0, 1fr)" }, height: "100%", minHeight: 0, overflow: "hidden", position: "relative" }}>
-    <Stack component="aside" aria-label="Plan your network" sx={{ bgcolor: "#fcfcfa", borderRight: { md: "1px solid #e2e7df" }, minHeight: 0, display: { xs: mobilePanelOpen ? "flex" : "none", md: "flex" }, position: { xs: "absolute", md: "relative" }, bottom: 0, width: { xs: "100%", md: "auto" }, maxHeight: { xs: "80%", md: "100%" }, height: { xs: "80%", md: "100%" }, zIndex: 1200, borderRadius: { xs: "16px 16px 0 0", md: 0 }, boxShadow: { xs: "0 -8px 40px #20332820", md: "none" } }}>
+  return <Box className="planning-workspace" sx={{ display: "grid", gridTemplateColumns: transportMode ? "1fr" : { xs: "1fr", md: "288px minmax(0, 1fr)", xl: "304px minmax(0, 1fr)" }, height: "100%", minHeight: 0, overflow: "hidden", position: "relative" }}>
+    <Stack component="aside" aria-label="Plan your network" sx={{ bgcolor: "#fcfcfa", borderRight: { md: "1px solid #e2e7df" }, minHeight: 0, display: transportMode ? "none" : { xs: mobilePanelOpen ? "flex" : "none", md: "flex" }, position: { xs: "absolute", md: "relative" }, bottom: 0, width: { xs: "100%", md: "auto" }, maxHeight: { xs: "80%", md: "100%" }, height: { xs: "80%", md: "100%" }, zIndex: 1200, borderRadius: { xs: "16px 16px 0 0", md: 0 }, boxShadow: { xs: "0 -8px 40px #20332820", md: "none" } }}>
       <Stack direction="row" sx={{ display: { xs: "flex", md: "none" }, px: 2, py: 1, alignItems: "center", justifyContent: "space-between", borderBottom: 1, borderColor: "divider" }}><Typography variant="subtitle2">Plan your network</Typography><IconButton aria-label="Close planning panel" onClick={() => setMobilePanelOpen(false)}><CloseRoundedIcon /></IconButton></Stack>
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 2.5 }}>
         <Typography variant="overline" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", color: "text.secondary" }}>{category.toUpperCase()} MONITORING</Typography>
@@ -234,7 +245,6 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
           <Button fullWidth variant="outlined" disabled={invalid || loading || editing || !suggestionRadiusValid} onClick={() => generate(1)} sx={{ fontSize: 12, whiteSpace: "nowrap", px: 0.75 }}>Suggest next 1</Button>
           <Button fullWidth variant="outlined" disabled={invalid || loading || editing || !suggestionRadiusValid} onClick={() => generate(2)} sx={{ fontSize: 12, whiteSpace: "nowrap", px: 0.75 }}>Suggest 2 together</Button>
         </Stack>
-        <Button size="small" startIcon={<TuneRoundedIcon sx={{ fontSize: 16 }} />} onClick={() => setPreferencesOpen(true)} sx={{ color: "text.secondary", mt: 1, mb: 2 }}>Planning preferences</Button>
         {loading && <Box role="status" sx={{ mb: 2 }}><Typography variant="caption" color="text.secondary">Finding the next useful locations…</Typography><LinearProgress sx={{ mt: 1, borderRadius: 2 }} /></Box>}
         {error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={() => generate()}>Retry</Button>}>{error}</Alert>}
         <Divider sx={{ mb: 2.5 }} />
@@ -271,7 +281,7 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
       </Box>
     </Stack>
     <Box component="section" role="region" aria-label="Plan comparison map" ref={mapRef} sx={{ minWidth: 0, minHeight: 0, height: "100%", position: "relative", display: "flex", flexDirection: "column" }}>
-      {plan && <Stack direction="row" sx={{ px: 2, py: 1, bgcolor: "#fcfcfa", borderBottom: 1, borderColor: "divider", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}><SelectionSteps plan={plan} step={before || view === "original" ? -1 : step} onSelect={selectStep} /><Typography variant="caption" sx={{ display: "none" }}>{view === "compare" ? `O: Original · Numbers: Joint · Shading follows Joint` : view === "original" ? "Original · previous repository method" : "Joint · new planning method"}</Typography><ToggleButtonGroup sx={{ display: !plan.userAdjusted && category === "air" ? { xs: "none", sm: "flex" } : "none" }} size="small" exclusive value={view} aria-label="Map method" onChange={(_, next) => { if (next) { setPlaying(false); setBefore(false); setView(next); setStep(plan.steps.length); } }}><ToggleButton value="original" disabled={!plan.originalPlan.metrics}>Original</ToggleButton><ToggleButton value="joint">Joint</ToggleButton><ToggleButton value="compare" disabled={!plan.originalPlan.metrics}>Both</ToggleButton></ToggleButtonGroup></Stack>}
+      {!transportMode && plan && <Stack direction="row" sx={{ px: 2, py: 1, bgcolor: "#fcfcfa", borderBottom: 1, borderColor: "divider", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}><SelectionSteps plan={plan} step={before || view === "original" ? -1 : step} onSelect={selectStep} /><Typography variant="caption" sx={{ display: "none" }}>{view === "compare" ? `O: Original · Numbers: Joint · Shading follows Joint` : view === "original" ? "Original · previous repository method" : "Joint · new planning method"}</Typography><ToggleButtonGroup sx={{ display: !plan.userAdjusted && category === "air" ? { xs: "none", sm: "flex" } : "none" }} size="small" exclusive value={view} aria-label="Map method" onChange={(_, next) => { if (next) { setPlaying(false); setBefore(false); setView(next); setStep(plan.steps.length); } }}><ToggleButton value="original" disabled={!plan.originalPlan.metrics}>Original</ToggleButton><ToggleButton value="joint">Joint</ToggleButton><ToggleButton value="compare" disabled={!plan.originalPlan.metrics}>Both</ToggleButton></ToggleButtonGroup></Stack>}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <CityMap planningCategory={category} onPlanningCategoryChange={setCategory} workspace compact focusLocation={focusLocation} includePlanned={!before} onStartPlacement={() => setBefore(false)} frameStations={frameStations} coverageStations={coverageStations}
           planningCaption={before ? category === "noise" ? "Before · historical noise sites" : "Before · installed sensors only" : plan ? `${view === "original" ? "Original" : step === 0 ? "Current" : plan.userAdjusted ? "Adjusted" : "Recommended"} ${category} coverage · ${coverageStations.length} proposed ${coverageStations.length === 1 ? "station" : "stations"} · use + / − to zoom` : "Green: near · yellow: mid-range · red: monitoring gap · use + / − to zoom"}>
@@ -281,24 +291,23 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
           {plan && !before && view !== "original" && plan.jointPlan.stations.slice(0, step).map((s, i) => <AnimatedCoverage key={`joint-${s.id}`} lat={s.lat} lng={s.lng} radiusKm={s.radiusKm ?? plan.studyArea.radiusKm}>{stationMarker(s, i, false)}</AnimatedCoverage>)}
         </CityMap>
       </Box>
-    {!plan && category !== "water" && <Box sx={{ display: { xs: "none", md: "block" }, position: "absolute", bottom: 26, right: 24, zIndex: 1050, width: 294, bgcolor: "#fffffff5", border: "1px solid white", borderRadius: "20px", p: 2.5, boxShadow: "0 12px 48px #23382d1a" }}>
+    {!transportMode && !plan && category !== "water" && <Box sx={{ display: { xs: "none", md: "block" }, position: "absolute", bottom: 26, right: 24, zIndex: 1050, width: 294, bgcolor: "#fffffff5", border: "1px solid white", borderRadius: "20px", p: 2.5, boxShadow: "0 12px 48px #23382d1a" }}>
       <Typography variant="overline" sx={{ fontSize: 10, letterSpacing: ".12em", color: "text.secondary" }}>Smarter placement</Typography>
       <Typography sx={{ fontSize: 21, fontWeight: 650, letterSpacing: "-.6px", lineHeight: 1.2, mt: .5, mb: 1 }}>Make every sensor count.</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Find three complementary locations using the current network and your {suggestionRadius} km radius.</Typography>
       <Button fullWidth variant="contained" aria-label="Optimize network" endIcon={<ArrowForwardRoundedIcon />} disabled={invalid || loading || editing || !suggestionRadiusValid} onClick={() => generate(3)}>{loading ? "Calculating your network…" : "Optimize network"}</Button>
       {loading && <LinearProgress aria-label="Optimizing sensor placement" sx={{ mt: 1.5, borderRadius: 1 }} />}
     </Box>}
-    {plan && plan.steps.length > 0 && !before && view === "joint" && !basketOpen && !showDetails && !mobilePanelOpen && <OptimizationReveal plan={plan} step={step} playing={playing} onPause={() => setPlaying(false)} onPlay={() => { if (step >= plan.steps.length) setStep(0); setPlaying(true); }} onSelect={selectStep} onCompare={() => { setPlaying(false); setShowDetails(true); }} />}
+    {!transportMode && plan && plan.steps.length > 0 && !before && view === "joint" && !basketOpen && !showDetails && !mobilePanelOpen && <OptimizationReveal plan={plan} step={step} playing={playing} onPause={() => setPlaying(false)} onPlay={() => { if (step >= plan.steps.length) setStep(0); setPlaying(true); }} onSelect={selectStep} onCompare={() => { setPlaying(false); setShowDetails(true); }} />}
     </Box>
-    {!mobilePanelOpen && <Stack direction="row" sx={{ display: { xs: "flex", md: "none" }, position: "absolute", bottom: 24, left: 16, right: 16, gap: 1, zIndex: 1100 }}><Button variant="contained" sx={{ flex: 1, height: 44, boxShadow: "0 4px 16px #20332824" }} onClick={() => setMobilePanelOpen(true)}>Plan sensors</Button><Button variant="outlined" sx={{ bgcolor: "background.paper" }} onClick={() => setBasketOpen(true)}>Basket · {simulatedStations.length + (plan?.steps.length ?? 0)}</Button></Stack>}
-    <Dialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} maxWidth="xs" fullWidth>
+    {!transportMode && !mobilePanelOpen && <Stack direction="row" sx={{ display: { xs: "flex", md: "none" }, position: "absolute", bottom: 24, left: 16, right: 16, gap: 1, zIndex: 1100 }}><Button variant="contained" sx={{ flex: 1, height: 44, boxShadow: "0 4px 16px #20332824" }} onClick={() => setMobilePanelOpen(true)}>Plan sensors</Button><Button variant="outlined" sx={{ bgcolor: "background.paper" }} onClick={() => setBasketOpen(true)}>Basket · {simulatedStations.length + (plan?.steps.length ?? 0)}</Button></Stack>}
+    <Dialog open={preferencesOpen && !transportMode} onClose={() => setPreferencesOpen(false)} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>Planning preferences<IconButton aria-label="Close planning preferences" onClick={() => setPreferencesOpen(false)}><CloseRoundedIcon /></IconButton></DialogTitle>
       <DialogContent>        <Grid container spacing={3} sx={{ mt: 1, alignItems: "center" }}>
-          <Grid size={12}><Typography variant="subtitle2">{category === "noise" ? "Give more priority to higher estimated nighttime noise" : "Give more priority to areas with higher estimated air pollution"}</Typography>
+          <Grid size={12}><Typography variant="subtitle2">{category === "noise" ? "Noise priority" : "Air pollution priority"}</Typography>
             <Slider value={environmentalWeight} min={0} max={3} step={0.25} valueLabelDisplay="auto" aria-label="Environmental importance" onChange={(_, value) => { reset(); setEnvironmentalWeight(value as number); }} />
-            <Typography variant="caption" color="text.secondary">At zero, only extra area matters. Moving right gives {category === "noise" ? "nighttime noise" : "pollution"} estimates more influence.</Typography>
           </Grid>
-          <Grid size={12}><TextField size="small" label="Keep new sensors at least this far apart (km)" type="number" value={separation} error={invalid} helperText={invalid ? "Enter a distance from 0 to 5 km." : "Avoid placing the new sensors too close together."} onChange={(event) => { reset(); setSeparation(event.target.value); }} slotProps={{ htmlInput: { min: 0, max: 5, step: 0.25 } }} fullWidth /></Grid>
+          <Grid size={12}><TextField size="small" label="Minimum spacing (km)" type="number" value={separation} error={invalid} helperText={invalid ? "Enter a distance from 0 to 5 km." : ""} onChange={(event) => { reset(); setSeparation(event.target.value); }} slotProps={{ htmlInput: { min: 0, max: 5, step: 0.25 } }} fullWidth /></Grid>
         </Grid></DialogContent>
     </Dialog>
     <Drawer anchor="right" open={showDetails && Boolean(plan)} onClose={() => { setShowDetails(false); setView("joint"); if (plan) setStep(plan.steps.length); }} sx={{ zIndex: 1400 }} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 500 }, maxWidth: "100%", p: 2.5 } } }}>

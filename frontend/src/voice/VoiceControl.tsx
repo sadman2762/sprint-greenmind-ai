@@ -55,7 +55,7 @@ export default function VoiceControl() {
     </Stack>
     {open && <Portal><Paper role="region" aria-label="Voice map control" elevation={5} sx={{ position: 'fixed', right: { xs: 8, sm: 16 }, top: { xs: 84, sm: 88 }, width: 370, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100dvh - 90px)', zIndex: 1700, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: '20px', boxShadow: '0 16px 64px #23382d24', animation: 'panel-arrive 220ms ease' }}>
       <Stack direction="row" sx={{ p: 2, pb: 1, alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box><Typography variant="subtitle1" sx={{ fontWeight: 650 }}>Your city. In conversation.</Typography><Typography variant="caption" color="text.secondary">GPT-Live 1 · Azure</Typography></Box>
+        <Box><Typography variant="subtitle1" sx={{ fontWeight: 650 }}>Your city. In conversation.</Typography></Box>
         <IconButton aria-label="Collapse voice panel" onClick={() => setOpen(false)}><CloseRoundedIcon /></IconButton>
       </Stack>
       <Stack spacing={1.5} sx={{ px: 2, pb: 2 }}>
@@ -74,7 +74,7 @@ export default function VoiceControl() {
           <Button variant="contained" color="error" onClick={() => session.current?.stop()}>End conversation</Button>
         </Stack> : <Button variant="contained" disabled={localOnly || !config?.configured || config.localOnly} onClick={() => void start()}>Start voice control</Button>}
         {active && <Button size="small" onClick={() => { void session.current?.playAudio().catch(() => setError('Audio playback is still blocked by the browser.')); }}>Enable audio</Button>}
-        <Typography variant="caption" color="text.secondary">While connected, microphone audio and relevant map context go to Azure. The key stays on the server. End stops the microphone and queued commands.</Typography>
+        <Typography variant="caption" color="text.secondary">Voice sends microphone audio and map context to Azure. End conversation stops the microphone.</Typography>
         {logs.length > 0 && <Box role="log" aria-label="Voice transcript and actions" aria-live="polite" sx={{ maxHeight: 270, overflowY: 'auto', borderTop: 1, borderColor: 'divider', pt: 1 }}>
           {logs.map(entry => <Box key={entry.id} sx={{ mb: 1, p: 1.5, bgcolor: entry.kind === 'action' ? '#edf5ee' : entry.kind === 'user' ? '#f6f7f3' : 'transparent', borderRadius: 2, borderLeft: entry.kind === 'action' ? '2px solid #398161' : undefined, animation: 'panel-arrive 200ms ease' }}><Typography variant="caption" color={entry.kind === 'error' ? 'error' : 'text.secondary'}>{entry.kind === 'user' ? 'You' : entry.kind === 'assistant' ? 'Assistant' : entry.kind === 'action' ? 'Action completed' : 'Action unavailable'}</Typography><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{entry.text}</Typography></Box>)}
           <div ref={transcriptEnd} />

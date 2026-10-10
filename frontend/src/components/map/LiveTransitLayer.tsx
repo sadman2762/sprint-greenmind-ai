@@ -1,3 +1,5 @@
+import { useCityView } from "../../context/cityView";
+import { useVoiceActions } from '../../voice/actionContext';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import L from 'leaflet';
@@ -34,6 +36,7 @@ const VehicleMarker = memo(function VehicleMarker({ vehicle, stale }: { vehicle:
 /** Mounted only while the layer is enabled; no requests while the document is hidden. */
 export default function LiveTransitLayer({ onClose }: { onClose: () => void }) {
   const map = useMap();
+  const { city } = useCityView();
   const panel = useRef<HTMLDivElement>(null);
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null);
   const [error, setError] = useState('');
@@ -83,6 +86,15 @@ export default function LiveTransitLayer({ onClose }: { onClose: () => void }) {
   const counts = allVehicles.reduce<Record<string, number>>((result, v) => { result[v.mode] = (result[v.mode] ?? 0) + 1; return result; }, {});
   const stale = (v: LiveVehicle) => v.stale || !v.freshnessAt || now - v.freshnessAt > 120 || now - v.freshnessAt < -60;
   const currentCount = vehicles.filter(v => !stale(v)).length;
+  useVoiceActions('transit', {
+    set_transit_filter: c => { setMode(c.mode!); return { ok: true, message: `Transport filter set to ${c.mode}.`, data: { count: c.mode === 'all' ? allVehicles.length : counts[c.mode!] ?? 0 } }; },
+    refresh_transit: () => { setAttempt(a => a + 1); return { ok: true, message: 'Vehicle feed refresh requested; availability is not yet confirmed.' }; },
+    focus_transit: () => {
+      if (!vehicles.length) return { ok: false, message: 'No vehicle positions available for this filter.' };
+      map.fitBounds(vehicles.map(v => [v.latitude, v.longitude] as [number, number]), { padding: [50, 50], maxZoom: 13, animate: false });
+      return { ok: true, message: `Showing ${vehicles.length} reported vehicle positions.`, data: { provider: snapshot?.provider, recent: currentCount } };
+    },
+  }, () => ({ provider: snapshot?.provider ?? null, error, mode, counts, recent: currentCount, feedTimestamp: snapshot?.feedTimestamp ?? null }));
   return <>
     <Box ref={panel} role="region" aria-label="Live transport status" sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, width: 280, maxWidth: 'calc(100% - 70px)', bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 2, boxShadow: 2, p: 1.5 }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -102,7 +114,7 @@ export default function LiveTransitLayer({ onClose }: { onClose: () => void }) {
       </>}
       <Stack direction="row" sx={{ mt: 0.5, gap: 1 }}>
         <Button size="small" disabled={!vehicles.length} onClick={() => map.fitBounds(vehicles.map(v => [v.latitude, v.longitude] as [number, number]), { padding: [50, 50], maxZoom: 13, animate: false })}>Show vehicles</Button>
-        {snapshot?.provider.includes('BKK') && <Button size="small" onClick={() => map.setView([47.4979, 19.0402], 13, { animate: false })}>Budapest</Button>}
+        {city !== 'budapest' && snapshot?.provider.includes('BKK') && <Button size="small" onClick={() => map.setView([47.4979, 19.0402], 13, { animate: false })}>Budapest</Button>}
         <Button size="small" onClick={() => setAttempt(a => a + 1)}>Refresh</Button>
       </Stack>
     </Box>

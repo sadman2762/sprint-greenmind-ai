@@ -11,3 +11,9 @@ export function useVoiceActions(scope: string, handlers: Partial<Record<Action, 
   // Replace handlers after each commit so tools always use current state, including after planner remounts.
   useLayoutEffect(() => registry.register(scope, handlers, context), [registry, scope, handlers, context]);
 }
+
+/** Standalone legend renderers also work without a voice provider. */
+export function useOptionalVoiceActions(scope: string, handlers: Partial<Record<Action, CommandHandler>>, context: () => unknown) {
+  const registry = useContext(ActionContext);
+  useLayoutEffect(() => registry?.register(scope, handlers, context), [registry, scope, handlers, context]);
+}

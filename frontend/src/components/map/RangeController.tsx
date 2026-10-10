@@ -1,3 +1,4 @@
+import { useVoiceActions } from "../../voice/actionContext";
 import RadiusInput from "./RadiusInput";
 import { useState } from "react";
 import { Box, Button, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from "@mui/material";
@@ -20,6 +21,7 @@ export function SensorRangeEditor({ station }: { station: Station }) {
 export default function RangeController() {
   const [open, setOpen] = useState(false);
   const { radii, setRadius, overrides } = useRanges();
+  useVoiceActions("ranges", { open_panel: c => { setOpen(c.visible!); return { ok: true, message: `Sensor ranges ${c.visible ? "opened" : "closed"}.` }; } }, () => ({ open }));
   return <>
     <Button size="small" variant="outlined" onClick={() => setOpen(true)}>Sensor ranges</Button>
     <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>

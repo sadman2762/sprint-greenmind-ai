@@ -1,3 +1,4 @@
+import { useOptionalVoiceActions } from "../../voice/actionContext";
 import { useEffect, useId, useState } from "react";
 import { Box, Button, Collapse, IconButton, Paper, Popover, Stack, ToggleButton, ToggleButtonGroup, Typography, useMediaQuery, useTheme } from "@mui/material";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -71,6 +72,7 @@ export default function MapLegend({ initialMode, additionalAirPlanCount = 0, add
   const existingCount = options.stations.filter((station) => isCoverageStation(station, coverageCategory)).length;
   const plannedCount = options.simulatedStations.filter((station) => isCoverageStation(station, coverageCategory)).length + (coverageCategory === additionalPlanCategory ? additionalPlanCount : 0);
   const expanded = mode === "expanded";
+  useOptionalVoiceActions("legend", { set_legend: c => { setMode(c.legendMode!); return { ok: true, message: `Map legend ${c.legendMode}.` }; } }, () => ({ mode }));
 
   useEffect(() => {
     try {
