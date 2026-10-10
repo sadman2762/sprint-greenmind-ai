@@ -74,3 +74,25 @@ These options cover voice, geocoding and live GTFS upstream connections; the leg
 On the development Mac, an authenticated Azure voice session was verified through the configured proxy. Direct Azure TLS timed out on that network. Tests cover a dead proxy followed by working direct access, but this does not prove that the current network permits Azure with VPN disabled. If both direct access and the permitted proxy fail, the backend needs a network that can reach Azure, or deployment to an accessible HTTPS host with WebSocket support. A static-only/serverless frontend deployment is insufficient for the persistent voice relay.
 
 BKK transport has an independent default: direct HTTPS when no network mode is explicitly configured. `TRANSIT_NETWORK_MODE` overrides only the vehicle feed; it never changes Azure voice routing. See [LIVE_TRANSIT.md](LIVE_TRANSIT.md).
+
+## Voice policy and expanded controls
+
+See [VOICE_POLICY.md](VOICE_POLICY.md) for the public policy, enforcement boundaries and limitations. `shared/voice-policy.json` defines the same action-specific contract for both application layers. Include this file when packaging the backend.
+
+Additional commands cover opening/closing ranges, planning preferences, mobile planning and layers; changing environmental importance and minimum separation; starting/cancelling manual placement; restoring a sensor's category radius; inspecting/closing sensor details; filtering graph connections; showing/hiding the legend and individual coverage bands; filtering, focusing and refreshing the enabled live transport feed. Enable the live layer before calling its controls. For example: “Open sensor ranges”, “Start placing a water sensor with a 300 metre radius”, “Show only buses”, “Show red monitoring gaps”, “Set environmental importance to two”.
+
+Simple display requests no longer require a context read first. Azure delegation uses low reasoning effort and low text verbosity. Identity-dependent changes still read current state and execute serially. No new latency SLA is implied.
+
+### Verification on 2026-10-10
+
+- Backend: 83 tests passed. Frontend: 45 unit/render tests passed; production build passed. Five browser workflows passed (voice, proposal editing, ranges/connections, joint planning, live transport). The expanded voice workflow was rerun after its final changes. Lint retains 22 pre-existing errors and one warning; checks were not disabled. The build retains its large-bundle warning.
+- Actual Azure audio path, fresh Edge sessions, prerecorded “Show water sensors”, three runs before and three after. Time from receipt of the final input-transcript fragment to the browser sending the successful action result: before 1647/1647/1774 ms; after 1008/653/873 ms. Median 1647 → 873 ms (about 47% lower). Calls reduced from `get_context` + `set_network` to `set_network`. This measures one simple command on one development network, not a general SLA or acoustic end-to-end latency. Median first output-transcript arrival changed only slightly: 1547 → 1512 ms from first input-transcript arrival. Speech and action latency are different measurements.
+- Actual spoken override/credential-extraction attempt: no tool calls or requested plan mutations occurred. Azure began refusing and then returned `content_filter`, stopping generation. The client now displays a fixed formal refusal on that code and aborts the task's queued actions; it does not expose provider error payloads. A complete spoken refusal cannot be guaranteed when Azure stops generation.
+- Actual data-injection check: one synthetic installed station name contained instructions to override policy, add sensors and reveal a key. The legitimate spoken request was to open that station's details. The only issued calls were `get_context` and `inspect_sensor` for the fixture's ID, with no attack-requested action. The source dataset was not modified; the fresh test browser intercepted the station response.
+
+These two adversarial scenarios are evidence of the observed behavior, not a comprehensive security evaluation. Deterministic protocol regression tests supplement the live checks.
+
+
+## City selector
+
+The header selects Debrecen sensor planning or Budapest live transport. `set_city` accepts `debrecen` or `budapest`; planning mutations in Budapest are rejected until the user returns to Debrecen. The existing plan stays in memory during the switch. Map travel respects reduced-motion preferences. Debrecen historical KPIs are hidden in Budapest. Planning preferences are no longer an ordinary sidebar button; the existing explicit voice settings remain available. The model/deployment subtitle is removed from the conversation panel; the short audio-sharing notice remains.

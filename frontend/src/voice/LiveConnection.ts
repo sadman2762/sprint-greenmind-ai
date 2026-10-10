@@ -24,6 +24,7 @@ export class LiveConnection {
   private queue: Promise<void> = Promise.resolve();
   private task = new AbortController();
   private delegation = '';
+  private inputLanguage = 'en';
   private contextTimer: ReturnType<typeof setInterval> | null = null;
   private startupTimer: ReturnType<typeof setTimeout> | null = null;
   private lastContext = '';
@@ -48,7 +49,7 @@ export class LiveConnection {
     this.lastContext = context;
     // Full structured state is available via get_context; keep Live context under its 500-token limit.
     this.send({ type: 'session.thinking.append', event_id: crypto.randomUUID(), delegation_id: null,
-      content: 'The GreenMind workspace changed. Before acting or describing current sensors, ask the backend to read get_context. Do not use previous coordinates or previous proposal IDs without checking.' });
+      content: 'Workspace state changed. Read get_context before resolving sensor IDs or reporting current results. Explicit network, layer, zoom and panel commands can run directly.' });
   }
   async connect() {
     this.callbacks.status('Connecting');
@@ -81,9 +82,23 @@ export class LiveConnection {
     } else if (event.type === 'relay.error') {
       this.log('error', typeof event.message === 'string' ? event.message : 'Voice connection failed.'); this.stop();
     } else if (event.type === 'session.input_transcript.delta' || event.type === 'session.output_transcript.delta') {
+      if (event.type === 'session.input_transcript.delta' && typeof event.delta === 'string') {
+        if (/[а-яё]/i.test(event.delta)) this.inputLanguage = 'ru';
+        else if (/[a-z]/i.test(event.delta)) this.inputLanguage = 'en';
+      }
       if (typeof event.delta === 'string') this.log(event.type === 'session.input_transcript.delta' ? 'user' : 'assistant', event.delta.slice(0, 4000));
     } else if (event.type === 'session.closed') this.stop();
     else if (event.type === 'error') {
+      this.processing = false; this.refreshStatus();
+      const error = event.error as { code?: string } | undefined;
+      if (error?.code === 'content_filter') {
+        this.task.abort(); this.batches.clear();
+        this.log('assistant', this.inputLanguage === 'ru'
+          ? 'Я не могу выполнить этот запрос в рамках правил безопасности. Могу помочь с картой и планом датчиков.'
+          : 'I cannot carry out this request under the safety policy. I can help with the map and sensor plan.');
+        this.refreshStatus();
+        return;
+      }
       // Provider errors may contain internal configuration; show a useful generic state, not the raw payload.
       this.log('error', 'The voice service could not complete the request. Check model access or try reconnecting.');
       if (!this.started) this.stop();
@@ -112,6 +127,7 @@ export class LiveConnection {
         if (batch && !batch.calls.some(c => c.call_id === nested.item!.call_id)) batch.calls.push(nested.item);
       }
       if (nested.type === 'response.completed' && !this.completed.has(responseId)) {
+        if (delegation === this.delegation) { this.processing = false; this.refreshStatus(); }
         this.completed.add(responseId);
         const batch = this.batches.get(responseId); this.batches.delete(responseId);
         if (batch?.calls.length) {
@@ -119,7 +135,7 @@ export class LiveConnection {
           this.queue = this.queue.then(() => this.runBatch(batch, signal)).catch(() => this.log('error', 'A voice action could not finish. Read the current plan before retrying.'));
         }
       }
-      if (nested.type === 'response.failed' || nested.type === 'response.cancelled') { this.batches.delete(responseId); this.processing = false; this.refreshStatus(); }
+      if (nested.type === 'response.failed' || nested.type === 'response.cancelled') { this.batches.delete(responseId); if (delegation === this.delegation) { this.processing = false; this.refreshStatus(); } }
     }
   }
   private async runBatch(batch: Batch, signal: AbortSignal) {
@@ -144,7 +160,7 @@ export class LiveConnection {
       this.send({ type: 'response.item.create', event_id: crypto.randomUUID(), item: { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify(result) } });
     }
     if (!this.ended) this.send({ type: 'response.create', event_id: crypto.randomUUID() });
-    } finally { this.applying -= 1; this.processing = false; this.refreshStatus(); }
+    } finally { this.applying -= 1; if (batch.delegation === this.delegation) this.processing = false; this.refreshStatus(); }
   }
   mute(muted: boolean) {
     this.muted = muted;

@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import json
 import ssl
 from urllib.parse import urlsplit
@@ -7,6 +6,7 @@ from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidProxyStatus, InvalidStatus
 from fastapi import WebSocket, WebSocketDisconnect
 from app.services.voice_service import configuration, session_configuration
+from app.services.voice_policy import allowed_voice_event, VoiceSessionGuard
 from app.services.outbound import connect_websocket
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -39,20 +39,6 @@ def voice_session(body: VoiceSessionRequest, request: Request, response: Respons
 
 
 
-def allowed_voice_event(event):
-    if not isinstance(event, dict):
-        return False
-    kind = event.get('type')
-    if kind == 'session.input_audio.append':
-        try:
-            audio = base64.b64decode(event.get('audio', ''), validate=True)
-            return 0 < len(audio) <= 48_000 and len(audio) % 2 == 0
-        except (ValueError, TypeError):
-            return False
-    return kind in {'session.close', 'session.input_audio.mute', 'session.input_audio.unmute',
-                    'session.thinking.append', 'response.item.create', 'response.create'}
-
-
 @router.websocket('/stream')
 async def voice_stream(browser: WebSocket):
     origin = urlsplit(browser.headers.get('origin', ''))
@@ -73,21 +59,24 @@ async def voice_stream(browser: WebSocket):
                            open_timeout=20, max_size=2**22) as azure:
             await azure.send(json.dumps({'type': 'session.start', 'session': session_configuration()}))
 
+            guard = VoiceSessionGuard()
+
             async def to_azure():
                 while True:
                     raw = await browser.receive_text()
                     if len(raw) > 100_000:
                         raise ValueError('Voice message too large')
                     event = json.loads(raw)
-                    if not allowed_voice_event(event):
-                        raise ValueError('Unsupported voice event')
-                    await azure.send(raw)
+                    event = guard.from_browser(event)
+                    await azure.send(json.dumps(event))
                     if event['type'] == 'session.close':
                         return
 
             async def to_browser():
                 async for raw in azure:
-                    await browser.send_text(raw)
+                    event = guard.from_azure(json.loads(raw))
+                    if event is not None:
+                        await browser.send_json(event)
 
             tasks = [asyncio.create_task(to_azure()), asyncio.create_task(to_browser())]
             try:
