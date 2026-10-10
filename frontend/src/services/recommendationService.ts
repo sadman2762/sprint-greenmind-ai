@@ -8,7 +8,7 @@ interface RecommendationApiResponse {
   recommendations: SensorRecommendation[];
 }
 
-const BASE_URL = "http://localhost:8000/api/recommendations";
+const BASE_URL = "/api/recommendations";
 
 export async function getRecommendations(
   simulatedStations: Station[] = [],
@@ -71,4 +71,4 @@ export async function optimizeBudget(
   }
 
   return response.json();
-}
+}

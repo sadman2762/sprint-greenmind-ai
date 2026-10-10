@@ -29,8 +29,7 @@ interface LatestMeasurementsResponse {
   stations: LatestStationMeasurement[];
 }
 
-const API_BASE_URL =
-  "http://localhost:8000/api/official-dataset";
+const API_BASE_URL = "/api/official-dataset";
 
 export async function getOfficialDatasetSummary(): Promise<
   OfficialDatasetSummary

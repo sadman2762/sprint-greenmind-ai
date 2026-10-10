@@ -6,7 +6,8 @@ import threading
 import time
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
-from urllib.request import Request, urlopen
+from urllib.request import Request
+from app.services.outbound import urlopen
 
 from dotenv import load_dotenv
 from fastapi import HTTPException

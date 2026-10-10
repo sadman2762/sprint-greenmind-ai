@@ -19,10 +19,12 @@ export function useEditablePlan(source: JointPlan | null, inputs: JointPlanReque
       benchmark: { method: "No optimality benchmark for manually edited coordinates.", metrics: null },
     } satisfies JointPlan;
   }, [source, receipt]);
-  async function move(index: number, lat: number, lng: number) {
+  async function move(index: number, lat: number, lng: number, signal?: AbortSignal) {
     if (!source || !plan) return false;
     controller.current?.abort();
     const next = new AbortController(); controller.current = next;
+    const cancel = () => next.abort();
+    signal?.addEventListener("abort", cancel, { once: true });
     setPending(source); setFailure(null);
     try {
       const stations = plan.jointPlan.stations.map((station, i) => ({ ...station,
@@ -35,7 +37,7 @@ export function useEditablePlan(source: JointPlan | null, inputs: JointPlanReque
     } catch (error) {
       if (!next.signal.aborted) setFailure({ source, message: error instanceof Error ? error.message : "Could not recalculate the move." });
       return false;
-    } finally { if (!next.signal.aborted) setPending(null); }
+    } finally { signal?.removeEventListener("abort", cancel); if (!next.signal.aborted || signal?.aborted) setPending(null); }
   }
   return { plan, editing: !!source && pending === source, editError: failure?.source === source ? failure?.message : "", move };
 }

@@ -55,11 +55,10 @@ export interface RegisterSensorInput {
   estimatedDaysToService?: number;
 }
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = "/api/sensor-health";
 
 export async function fetchSensorHealth(): Promise<SensorHealthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/sensor-health/`);
+  const response = await fetch(`${API_BASE_URL}/`);
   if (!response.ok) {
     throw new Error(`Failed to fetch sensor health: ${response.statusText}`);
   }
@@ -69,7 +68,7 @@ export async function fetchSensorHealth(): Promise<SensorHealthResponse> {
 export async function registerNewSensorApi(
   input: RegisterSensorInput
 ): Promise<{ message: string; station: SensorDiagnostic; fleetReport: SensorHealthResponse }> {
-  const response = await fetch(`${API_BASE_URL}/api/sensor-health/stations`, {
+  const response = await fetch(`${API_BASE_URL}/stations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -84,7 +83,7 @@ export async function removeSensorApi(
   stationCode: string
 ): Promise<{ message: string; removedStationCode: string; fleetReport: SensorHealthResponse }> {
   const response = await fetch(
-    `${API_BASE_URL}/api/sensor-health/stations/${encodeURIComponent(stationCode)}`,
+    `${API_BASE_URL}/stations/${encodeURIComponent(stationCode)}`,
     {
       method: "DELETE",
     }
