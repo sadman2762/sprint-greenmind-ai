@@ -28,6 +28,14 @@ export class LiveConnection {
   private startupTimer: ReturnType<typeof setTimeout> | null = null;
   private lastContext = '';
   private started = false;
+  private speaking = false;
+  private processing = false;
+  private muted = false;
+  private applying = 0;
+  private refreshStatus() {
+    if (this.ended || !this.started) return;
+    this.callbacks.status(this.speaking ? "Speaking" : this.applying ? "Applying action" : this.processing ? "Processing" : this.muted ? "Microphone muted" : "Listening");
+  }
   private ended = false;
   private registry: CommandRegistry;
   private callbacks: Callbacks;
@@ -51,7 +59,7 @@ export class LiveConnection {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     if (this.abort.signal.aborted) { stream.getTracks().forEach(track => track.stop()); return; }
     this.stream = stream;
-    this.audio = new PcmAudio();
+    this.audio = new PcmAudio(playing => { this.speaking = playing; this.refreshStatus(); });
     await this.audio.start(stream, audio => {
       if (this.started && this.socket && this.socket.bufferedAmount < 96_000) this.send({ type: 'session.input_audio.append', audio });
     });
@@ -82,6 +90,7 @@ export class LiveConnection {
     } else if (event.type === 'session.delegation.created') {
       const delegation = event.delegation as { id?: string; target?: string } | undefined;
       if (!delegation?.id) return;
+      this.processing = true; this.refreshStatus();
       if (this.delegation !== delegation.id) {
         this.task.abort(); this.task = new AbortController(); this.delegation = delegation.id;
       }
@@ -110,10 +119,12 @@ export class LiveConnection {
           this.queue = this.queue.then(() => this.runBatch(batch, signal)).catch(() => this.log('error', 'A voice action could not finish. Read the current plan before retrying.'));
         }
       }
-      if (nested.type === 'response.failed' || nested.type === 'response.cancelled') this.batches.delete(responseId);
+      if (nested.type === 'response.failed' || nested.type === 'response.cancelled') { this.batches.delete(responseId); this.processing = false; this.refreshStatus(); }
     }
   }
   private async runBatch(batch: Batch, signal: AbortSignal) {
+    this.applying += 1; this.refreshStatus();
+    try {
     for (const call of batch.calls) {
       if (this.ended) return;
       let result = this.results.get(call.call_id);
@@ -133,11 +144,13 @@ export class LiveConnection {
       this.send({ type: 'response.item.create', event_id: crypto.randomUUID(), item: { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify(result) } });
     }
     if (!this.ended) this.send({ type: 'response.create', event_id: crypto.randomUUID() });
+    } finally { this.applying -= 1; this.processing = false; this.refreshStatus(); }
   }
   mute(muted: boolean) {
+    this.muted = muted;
     this.stream?.getAudioTracks().forEach(track => { track.enabled = !muted; });
     this.send({ type: muted ? 'session.input_audio.mute' : 'session.input_audio.unmute' });
-    this.callbacks.status(muted ? 'Microphone muted' : 'Listening');
+    this.refreshStatus();
   }
   async playAudio() { await this.audio?.resume(); }
   stop() {

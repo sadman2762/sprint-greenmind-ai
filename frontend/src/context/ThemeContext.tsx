@@ -121,7 +121,7 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
         },
       },
       shape: {
-        borderRadius: 4,
+        borderRadius: 12,
       },
       components: {
         MuiCssBaseline: {
@@ -149,9 +149,9 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
         MuiButton: {
           styleOverrides: {
             root: {
-              borderRadius: 8,
+              borderRadius: 10,
               minHeight: 38,
-              transition: "background-color 160ms ease, border-color 160ms ease",
+              transition: "background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
               boxShadow: "none",
               "&:hover": {
                 boxShadow: "none",
@@ -162,11 +162,12 @@ export function ThemeCustomProvider({ children }: { children: ReactNode }) {
         MuiChip: {
           styleOverrides: {
             root: {
-              borderRadius: 5,
+              borderRadius: 7,
               fontWeight: 500,
             },
           },
         },
+        MuiToggleButtonGroup: { styleOverrides: { root: { padding: 3, backgroundColor: "#f0f3ee", borderRadius: 12, gap: 3 }, grouped: { border: "0 !important", borderRadius: "9px !important", textTransform: "none", "&.Mui-selected": { backgroundColor: "#fff", color: "#176650", boxShadow: "0 1px 5px #243c3012" }, "&.Mui-selected:hover": { backgroundColor: "#fff" } } } },
         MuiTableCell: {
           styleOverrides: {
             root: { borderColor: "#e5e9e7" },

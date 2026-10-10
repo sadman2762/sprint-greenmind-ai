@@ -7,6 +7,8 @@ export class PcmAudio {
   private nextTime = 0;
   private timelineOrigin: number | null = null;
   private ended = false;
+  private onPlayback: (playing: boolean) => void;
+  constructor(onPlayback: (playing: boolean) => void = () => {}) { this.onPlayback = onPlayback; }
   async start(stream: MediaStream, send: (audio: string) => void) {
     await this.context.resume();
     await this.context.audioWorklet.addModule('/voice/pcm-capture.js');
@@ -39,7 +41,7 @@ export class PcmAudio {
     }
     const at = Math.max(this.context.currentTime + .02, this.nextTime, timelineTime);
     this.nextTime = at + buffer.duration;
-    this.playing.add(source); source.onended = () => { this.playing.delete(source); source.disconnect(); };
+    this.playing.add(source); this.onPlayback(true); source.onended = () => { this.playing.delete(source); source.disconnect(); if (!this.ended && this.playing.size === 0) this.onPlayback(false); };
     source.start(at);
   }
   async resume() { await this.context.resume(); }

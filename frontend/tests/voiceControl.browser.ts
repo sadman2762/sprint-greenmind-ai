@@ -58,6 +58,14 @@ test('GPT-Live events execute real map actions once, preserve radii and stop mic
     const panel = page.getByRole('region', { name: 'Voice map control' });
     await panel.getByRole('button', { name: 'Start voice control' }).click();
     await panel.getByText('Listening', { exact: true }).waitFor();
+    await page.evaluate(() => {
+      const h = (window as unknown as { voiceFixture: { emit: (event: unknown) => void } }).voiceFixture;
+      h.emit({ type: 'session.output_audio.delta', delta: btoa(String.fromCharCode(...new Uint8Array(24000))) });
+    });
+    await panel.getByText('Speaking', { exact: true }).waitFor();
+    await panel.getByText('Listening', { exact: true }).waitFor();
+    await page.evaluate(() => (window as unknown as { voiceFixture: { emit: (event: unknown) => void } }).voiceFixture.emit({ type: 'session.delegation.created', delegation: { id: 'task-1', target: 'responses' } }));
+    await panel.getByText('Processing', { exact: true }).waitFor();
     let sequence = 0;
     async function command(args: Record<string, unknown>, reusedId?: string) {
       const response = `response-${++sequence}`; const call = reusedId ?? `call-${sequence}`;

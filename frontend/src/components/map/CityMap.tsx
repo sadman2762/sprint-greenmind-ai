@@ -122,6 +122,7 @@ interface CityMapProps {
 function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, children, coverageStations = EMPTY_STATIONS, frameStations = EMPTY_STATIONS, compact = false, workspace = false, onStartPlacement, planningCaption, includePlanned = true, focusLocation }: CityMapProps) {
   const { radii, overrides, radiusFor, placementRadii, setPlacementRadius, setRadius, setOverride } = useRanges();
   const { selection, select, close } = useMapInspector();
+  const [graphHistory, setGraphHistory] = useState<string[]>([]);
   const [connectionFilter, setConnectionFilter] = useState<"all" | "sensors" | "transit">("all");
   const [placementRadiusValid, setPlacementRadiusValid] = useState(true);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
@@ -129,6 +130,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
   const [otherNetworkError, setOtherNetworkError] = useState("");
   const [resetKey, setResetKey] = useState(0);
   const [layersAnchor, setLayersAnchor] = useState<HTMLElement | null>(null);
+  const [tileError, setTileError] = useState(false);
   const [stations, setStations] = useState<Station[]>([]);
   const [trafficLocations, setTrafficLocations] = useState<TrafficLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,6 +186,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
   const relations = graphNode ? networkRelations(graphNode, graphNodes, connectionDistance).filter(r => connectionFilter === "all" || (connectionFilter === "transit" ? r.target.category === "transit" : r.target.category !== "transit")) : [];
   useEffect(() => { if (selection?.id.startsWith("proposal-") && !graphNode) close(false); }, [selection, graphNode, close]);
   const selectGraphNode = (node: NetworkNode) => {
+    if (graphNode && graphNode.id !== node.id) setGraphHistory(previous => [...previous, graphNode.id].slice(-20));
     setIsPlacingCustomPin(false);
     setConnectionsOpen(true);
     setConnectionFilter("all");
@@ -263,14 +266,16 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
     sensors: graphNodes.filter(n => n.category !== "transit").slice(0, 150).map(n => ({ id: n.id, name: n.name, category: n.category, latitude: n.lat, longitude: n.lng, radiusKm: n.radiusKm, source: n.source })),
     historicalTransitSource: "DKV stop statistics, May 2026. Not live vehicles." }));
 
+  const floatingToolbar = workspace && !isPlacingCustomPin && !selection && !showLiveTransit;
+
   if (loading) return <Card sx={{ height: workspace ? "100%" : "auto", display: "grid", placeItems: "center", p: 6 }}><CircularProgress aria-label="Loading monitoring map" /></Card>;
   if (error) return <Alert severity="error" sx={{ mt: 3 }} action={<Button color="inherit" onClick={() => { setError(""); setLoading(true); setLoadAttempt((value) => value + 1); }}>Retry map</Button>}>{error}</Alert>;
 
   return (
-    <Card variant="outlined" sx={{ mt: compact ? 0 : 3, borderRadius: workspace ? 0 : 3, border: workspace ? 0 : undefined, overflow: "hidden", height: workspace ? "100%" : undefined, display: "flex", flexDirection: "column" }}>
+    <Card variant="outlined" sx={{ mt: compact ? 0 : 3, borderRadius: workspace ? 0 : 3, border: workspace ? 0 : undefined, position: "relative", overflow: "hidden", height: workspace ? "100%" : undefined, display: "flex", flexDirection: "column" }}>
       {showTraffic && trafficError && <Alert severity="warning">{trafficError}</Alert>}
-      <Stack direction="row" sx={{ px: 2, py: 1.25, minHeight: 60, borderBottom: 1, borderColor: "divider", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap", flexShrink: 0 }}>
-        <Box sx={{ minWidth: 0 }}>
+      <Stack role="toolbar" aria-label="Map controls" direction="row" sx={{ position: floatingToolbar ? { xs: "relative", md: "absolute" } : "relative", top: floatingToolbar ? { md: 14 } : undefined, left: floatingToolbar ? { md: 14 } : undefined, right: floatingToolbar ? { md: 14 } : undefined, m: floatingToolbar ? 0 : { xs: 0, md: 1.5 }, zIndex: 1100, bgcolor: "background.paper", borderRadius: { md: 3 }, boxShadow: { md: "0 6px 28px #263c3012" }, px: 2, py: 1.25, minHeight: 60, border: "1px solid #e4e9e1", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap", flexShrink: 0 }}>
+        <Box sx={{ minWidth: 0, display: { xs: "none", sm: "block" } }}>
           <Typography variant="subtitle2">{overview ? "All monitoring networks" : `${COVERAGE_CATEGORIES.find(item => item.value === view)?.label ?? "Air"} monitoring`}</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{view === planningCategory && planningCaption ? planningCaption.split(" · use")[0] : "Explore stations and coverage"}</Typography>
         </Box>
@@ -278,7 +283,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
           <Button size="small" disabled={!graphNodes.length} onClick={() => { const node = graphNode ?? graphNodes.find(n => n.category === planningCategory) ?? graphNodes[0]; if (node) selectGraphNode(node); }}>Connections</Button>
           <Button size="small" variant={showLiveTransit ? "contained" : "text"} onClick={() => setShowLiveTransit(value => !value)}>Live transport</Button>
           <Button size="small" startIcon={<LayersOutlinedIcon />} aria-expanded={Boolean(layersAnchor)} onClick={event => setLayersAnchor(event.currentTarget)} sx={{ color: "text.secondary" }}>Layers</Button>
-          <Button variant={isPlacingCustomPin ? "contained" : "outlined"} size="small" startIcon={<AddLocationAltIcon />} onClick={() => { if (!isPlacingCustomPin) { onStartPlacement?.(); setCustomPinTier(view === "all" ? planningCategory : view); } setIsPlacingCustomPin(value => !value); }}>{isPlacingCustomPin ? "Cancel placement" : "Add sensor"}</Button>
+          <Button aria-label={isPlacingCustomPin ? "Cancel placement" : "Add sensor"} sx={{ minWidth: { xs: 36, sm: 64 }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: 1 }, ml: { xs: 0, sm: -.5 } } }} variant={isPlacingCustomPin ? "contained" : "outlined"} size="small" startIcon={<AddLocationAltIcon />} onClick={() => { if (!isPlacingCustomPin) { onStartPlacement?.(); setCustomPinTier(view === "all" ? planningCategory : view); } setIsPlacingCustomPin(value => !value); }}><Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>{isPlacingCustomPin ? "Cancel placement" : "Add sensor"}</Box></Button>
         </Stack>
       </Stack>
       <Popover open={Boolean(layersAnchor)} anchorEl={layersAnchor} onClose={() => setLayersAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
@@ -305,6 +310,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
         {/* 2. Map Container with 100% Unobstructed Surface */}
         <Box sx={{
           position: "relative", minWidth: 0, height: workspace ? "100%" : compact ? { xs: 400, md: "clamp(380px, 48vh, 540px)" } : { xs: "60dvh", md: "68vh" }, minHeight: workspace ? 0 : theme.spacing(40),
+          "& .leaflet-top.leaflet-left": { top: { md: floatingToolbar ? 86 : 8 } },
           "& .leaflet-tile-pane": { filter: "saturate(0.38) contrast(0.94) brightness(1.04)" },
           "& .leaflet-control-zoom": { border: "1px solid #dce3de", borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 8px #20332814" },
           "& .leaflet-tooltip": { width: "max-content", maxWidth: theme.spacing(32), whiteSpace: "normal" },
@@ -313,7 +319,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
           "& .leaflet-marker-icon:focus-visible": { outline: `3px solid ${theme.palette.primary.main}`, outlineOffset: 3, borderRadius: "50%" },
         }}>
           <MapContainer center={[47.5316, 21.6273]} zoom={10} minZoom={9} maxZoom={16} maxBoundsViscosity={0.3} scrollWheelZoom={workspace} preferCanvas style={{ height: "100%", width: "100%" }}>
-            <TileLayer attribution="© OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <TileLayer eventHandlers={{ tileerror: () => setTileError(true), tileload: () => setTileError(false) }} attribution="© OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <DebrecenBoundary />
             <MapVoiceController nodes={graphNodes} />
             <MapBoundsController focusLocation={focusLocation} stations={mapFrameStations} resetStations={[...mapFrameStations, ...simulatedStations]} resetKey={resetKey} />
@@ -330,6 +336,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
               onInvalidLocation={() => setNotification({ message: "Choose a location inside the study boundary.", severity: "warning" })}
               onPinAdded={(_lat, _lng, tier) => { setIsPlacingCustomPin(false); setNotification({ message: `${TIER_CONFIGS[tier].name} added to the plan.`, severity: "success" }); }} />
           </MapContainer>
+          {tileError && <Box role="status" sx={{ position: "absolute", top: { xs: 8, md: floatingToolbar ? 90 : 8 }, left: 56, zIndex: 1000, bgcolor: "#fffffff2", color: "text.secondary", px: 1.25, py: .5, borderRadius: 2, fontSize: 11 }}>Basemap unavailable · monitoring layers remain visible</Box>}
           <MapLegend radiusKm={radii[coverageCategory]} radiiKm={radii} hasRadiusOverrides={Object.keys(overrides).some(key => key.startsWith(`${coverageCategory}:`)) || coverageStations.some(s => radiusFor(s) !== radii[coverageCategory])} additionalPlanCount={coverageStations.length} additionalPlanCategory={planningCategory} showStations={showStations} showCoverage={showHeatmap} showTraffic={showTraffic} showRadius={showCoverageCircles}
             overview={overview} coverageCategory={coverageCategory} visibleBands={visibleBands} onViewChange={changeView}
             onBandsChange={(bands) => { setVisibleBands(bands); setShowHeatmap(true); }} onShowCoverage={() => setShowHeatmap(true)}
@@ -339,7 +346,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
         {/* Wide Telemetry Metrics Grid */}
         <MapInspectorPanel fallbackDetails={fallbackDetails} compact={compact} workspace={workspace} connectionsOpen={connectionsOpen} onConnectionsChange={setConnectionsOpen}
           rangeEditor={graphNode?.station ? <SensorRangeEditor station={graphNode.station} /> : undefined}
-          connections={graphNode ? <NetworkConnections filter={connectionFilter} onFilter={setConnectionFilter} node={graphNode} relations={relations} distance={connectionDistance} onDistance={setConnectionDistance} onSelect={selectGraphNode} unavailable={[otherNetworkError, trafficError].filter(Boolean).join(" ")} /> : undefined} />
+          connections={graphNode ? <NetworkConnections onBack={graphHistory.length ? () => { const previous = graphNodes.find(node => node.id === graphHistory[graphHistory.length - 1]); setGraphHistory(history => history.slice(0, -1)); if (previous) select({ id: previous.id, title: previous.name, subtitle: previous.source }); } : undefined} filter={connectionFilter} onFilter={setConnectionFilter} node={graphNode} relations={relations} distance={connectionDistance} onDistance={setConnectionDistance} onSelect={selectGraphNode} unavailable={[otherNetworkError, trafficError].filter(Boolean).join(" ")} /> : undefined} />
       </Box>
       <Snackbar open={Boolean(notification)} autoHideDuration={4500} onClose={() => setNotification(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         {notification ? <Alert severity={notification.severity} onClose={() => setNotification(null)}>{notification.message}</Alert> : undefined}

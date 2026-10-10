@@ -1,10 +1,12 @@
 import { useVoiceActions } from "../../voice/actionContext";
+import AnimatedCoverage from "../../components/map/AnimatedCoverage";
+import OptimizationReveal from "./OptimizationReveal";
 import { useEditablePlan } from "./useEditablePlan";
 import RadiusInput from "../../components/map/RadiusInput";
 import SuggestedStationMarker from "../../components/map/SuggestedStationMarker";
 import { useRanges } from "../../context/rangeState";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Box, Button, Card, Chip, Dialog, DialogContent, DialogTitle, Divider, Drawer, IconButton, Grid, LinearProgress, Link, Slider, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, Chip, Dialog, DialogContent, DialogTitle, Divider, Drawer, IconButton, Grid, LinearProgress, Link, Slider, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ToggleButton, ToggleButtonGroup, Typography, useMediaQuery } from "@mui/material";
 import { Circle, Marker, Popup, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
@@ -103,6 +105,8 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
   const loading = pendingRange === rangeSignature;
   const setLoading = (value: boolean) => setPendingRange(value ? rangeSignature : null);
   const [step, setStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [showDetails, setShowDetails] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [view, setView] = useState<"joint" | "original" | "compare">("joint");
@@ -110,7 +114,17 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
   useEffect(() => () => { request.current?.abort(); setPendingRange(null); }, [rangeSignature]);
   useEffect(() => { if (focusLocation) mapRef.current?.scrollIntoView({ block: "start" }); }, [focusLocation]);
 
+  useEffect(() => {
+    if (!playing || !plan || before || view !== "joint" || editing) return;
+    const timer = window.setTimeout(() => {
+      if (step < plan.steps.length) setStep(value => value + 1);
+      else setPlaying(false);
+    }, reducedMotion ? 0 : step === 0 ? 1800 : 2200);
+    return () => window.clearTimeout(timer);
+  }, [playing, plan, before, view, editing, step, reducedMotion]);
+
   function reset() {
+    setPlaying(false);
     request.current?.abort();
     setPlan(null); setLoading(false); setError(""); setStep(0); setView("joint"); setShowDetails(false);
   }
@@ -121,13 +135,13 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
     const controller = new AbortController(); request.current = controller;
     const cancelVoice = () => controller.abort();
     voiceSignal?.addEventListener("abort", cancelVoice, { once: true });
-    setLoading(true); setError(""); setPlan(null);
+    setPlaying(false); setStep(0); setLoading(true); setError(""); setPlan(null);
     try {
       const result = await getJointPlan({
         planningCategory: category, newSensorRadiusKm: suggestionRadius, coverageRadiiKm: radii, sensorRadiusOverridesKm: overrides, stationCount: count, environmentalWeight, minSeparationKm: Number(separation),
         existingSimulation: simulatedStations.map((s) => ({ id: String(s.id), name: s.name, lat: s.lat, lng: s.lng, category: getStationCategory(s) ?? "air", hardwareGrade: "unspecified" })),
       }, controller.signal);
-      if (!controller.signal.aborted) { setPlan({ value: result, signature: rangeSignature }); setStep(result.steps.length); setView("joint"); setShowDetails(false); return { ok: true, message: `Generated ${result.steps.length} suggestions. They are not applied yet.`, data: { stations: result.jointPlan.stations, metrics: result.jointPlan.metrics } }; }
+      if (!controller.signal.aborted) { setPlan({ value: result, signature: rangeSignature }); setStep(reducedMotion ? result.steps.length : 0); setPlaying(!reducedMotion && result.steps.length > 0); setView("joint"); setShowDetails(false); setMobilePanelOpen(false); return { ok: true, message: `Generated ${result.steps.length} suggestions. They are not applied yet.`, data: { stations: result.jointPlan.stations, metrics: result.jointPlan.metrics } }; }
       return { ok: false, message: "Request cancelled." };
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not generate a plan.");
@@ -148,13 +162,13 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
   function stationMarker(station: PlanStation, index: number, baseline: boolean) {
     const color = baseline ? "#b45309" : "#6d28d9";
     const icon = L.divIcon({ className: "joint-plan-marker", html: `<span style="display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:${color};color:white;border:2px solid white;font-weight:700">${baseline ? "O" : ""}${index + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] });
-    if (!baseline) return <SuggestedStationMarker station={station} index={index} icon={icon} disabled={editing} onMove={async (i, lat, lng) => { setView("joint"); setShowDetails(false); setAlternativeLocation(undefined); return move(i, lat, lng); }} />;
+    if (!baseline) return <SuggestedStationMarker station={station} index={index} icon={icon} disabled={editing || playing} onMove={async (i, lat, lng) => { setView("joint"); setShowDetails(false); setAlternativeLocation(undefined); return move(i, lat, lng); }} />;
     return <Marker key={`${baseline}-${station.id}`} position={[station.lat, station.lng]} icon={icon} title={`${baseline ? "Original" : "Joint"} station ${index + 1}`} eventHandlers={baseline ? undefined : { click: () => setBasketOpen(true) }}><Tooltip>{baseline ? "Original" : "Joint"} location {index + 1} · {station.lat.toFixed(4)}, {station.lng.toFixed(4)}</Tooltip>{baseline && <Popup><Typography variant="subtitle2">Original location {index + 1}</Typography><LocationAddress lat={station.lat} lng={station.lng} /></Popup>}</Marker>;
   }
   function selectStep(next: number) {
-    setBefore(false); setView("joint"); setStep(next); setAlternativeLocation(undefined); setFocusLocation(undefined);
+    setPlaying(false); setBefore(false); setView("joint"); setStep(next); setAlternativeLocation(undefined); setFocusLocation(undefined);
   }
-  const focusPin = (lat: number, lng: number) => { setBasketOpen(false); setMobilePanelOpen(false); setBefore(false); setView("joint"); if (plan) setStep(plan.steps.length); setFocusLocation(previous => ({ lat, lng, token: (previous?.token ?? 0) + 1 })); };
+  const focusPin = (lat: number, lng: number) => { setPlaying(false); setBasketOpen(false); setMobilePanelOpen(false); setBefore(false); setView("joint"); if (plan) setStep(plan.steps.length); setFocusLocation(previous => ({ lat, lng, token: (previous?.token ?? 0) + 1 })); };
   useVoiceActions("planner", {
     suggest_sensors: async (c, signal) => {
       if (loading || editing || invalid || !suggestionRadiusValid) return { ok: false, message: "Finish the current request or correct planning settings first." };
@@ -172,12 +186,14 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
     open_basket: c => { setBasketOpen(c.visible!); return { ok: true, message: c.visible ? "Location basket opened." : "Location basket closed." }; },
     select_step: c => { if (!plan || c.index! > plan.steps.length) return { ok: false, message: "That planning step does not exist." }; selectStep(c.index!); return { ok: true, message: `Showing step ${c.index}.` }; },
     set_comparison: c => {
+      setPlaying(false);
       if ((c.view === "original" || c.view === "both") && (!plan || plan.userAdjusted || category !== "air" || !plan.originalPlan.metrics)) return { ok: false, message: "Original comparison requires an unedited air plan." };
       setBefore(c.view === "before"); setView(c.view === "original" ? "original" : c.view === "both" ? "compare" : "joint");
       if (plan) setStep(plan.steps.length);
       return { ok: true, message: `Showing ${c.view} view.` };
     },
     move_suggestion: async (c, signal) => {
+      setPlaying(false);
       if (!plan || editing || loading || c.index! < 1 || c.index! > plan.steps.length) return { ok: false, message: "Select a current proposal (1-based index) after calculations finish." };
       const ok = await move(c.index! - 1, c.latitude!, c.longitude!, signal);
       return { ok, message: ok ? "Proposal moved and coverage recalculated; still unapplied." : "Proposal could not be moved. Check the boundary and spacing." };
@@ -192,13 +208,19 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
     suggestions: plan?.steps.map((s, i) => ({ index: i + 1, ...s.station, addedKm2: s.marginalKm2 })) ?? [],
     metrics: plan?.jointPlan.metrics ?? null, existingMetrics: plan?.existingMetrics ?? null,
     chosenCount: simulatedStations.length, automaticWaterPlanning: false }));
-  return <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "332px minmax(0, 1fr)" }, height: "100%", minHeight: 0, overflow: "hidden", position: "relative" }}>
-    <Stack component="aside" aria-label="Plan your network" sx={{ bgcolor: "background.paper", borderRight: { md: "1px solid #e0e6e1" }, minHeight: 0, display: { xs: mobilePanelOpen ? "flex" : "none", md: "flex" }, position: { xs: "absolute", md: "relative" }, bottom: 0, width: { xs: "100%", md: "auto" }, maxHeight: { xs: "80%", md: "100%" }, height: { xs: "80%", md: "100%" }, zIndex: 1200, borderRadius: { xs: "16px 16px 0 0", md: 0 }, boxShadow: { xs: "0 -8px 40px #20332820", md: "none" } }}>
+  return <Box className="planning-workspace" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "288px minmax(0, 1fr)", xl: "304px minmax(0, 1fr)" }, height: "100%", minHeight: 0, overflow: "hidden", position: "relative" }}>
+    <Stack component="aside" aria-label="Plan your network" sx={{ bgcolor: "#fcfcfa", borderRight: { md: "1px solid #e2e7df" }, minHeight: 0, display: { xs: mobilePanelOpen ? "flex" : "none", md: "flex" }, position: { xs: "absolute", md: "relative" }, bottom: 0, width: { xs: "100%", md: "auto" }, maxHeight: { xs: "80%", md: "100%" }, height: { xs: "80%", md: "100%" }, zIndex: 1200, borderRadius: { xs: "16px 16px 0 0", md: 0 }, boxShadow: { xs: "0 -8px 40px #20332820", md: "none" } }}>
       <Stack direction="row" sx={{ display: { xs: "flex", md: "none" }, px: 2, py: 1, alignItems: "center", justifyContent: "space-between", borderBottom: 1, borderColor: "divider" }}><Typography variant="subtitle2">Plan your network</Typography><IconButton aria-label="Close planning panel" onClick={() => setMobilePanelOpen(false)}><CloseRoundedIcon /></IconButton></Stack>
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 2.5 }}>
         <Typography variant="overline" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", color: "text.secondary" }}>{category.toUpperCase()} MONITORING</Typography>
-        <Typography component="h1" sx={{ fontSize: 25, lineHeight: 1.2, letterSpacing: "-0.8px", fontWeight: 650, mt: 0.5 }}>Build your network.</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2.5 }}>Find the next locations that reach more uncovered areas.</Typography>
+        <Typography component="h1" sx={{ fontSize: 31, lineHeight: 1.12, letterSpacing: "-0.8px", fontWeight: 650, mt: 0.5 }}>More insight.<br />Fewer sensors.</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2.5 }}>Place sensors where they make the greatest difference.</Typography>
+        <Box component="details" sx={{ mb: 2, color: "text.secondary", "&[open]": { p: 1.5, bgcolor: "#f0f4ee", borderRadius: 2 } }}>
+          <Typography component="summary" variant="caption" sx={{ cursor: "pointer", fontWeight: 600 }}>5-minute demo guide</Typography>
+          <Box component="ol" sx={{ pl: 2, mb: .5, fontSize: 12, lineHeight: 1.7 }}>
+            <li>Introduce the existing monitoring network.</li><li>Use the Gap band in the legend to isolate distant areas.</li><li>Suggest 3 together using the current radius.</li><li>Watch each location appear; pause to explain its added area.</li><li>Switch Before / After, then compare methods and export the plan.</li>
+          </Box>
+        </Box>
         <ToggleButtonGroup exclusive fullWidth size="small" value={category} aria-label="Network to plan" onChange={(_, value) => { if (value) setCategory(value); }} sx={{ mb: 2 }}><ToggleButton value="air">Air</ToggleButton><ToggleButton value="water">Water</ToggleButton><ToggleButton value="noise">Noise</ToggleButton></ToggleButtonGroup>
         {category === "noise" && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>Historical noise sites · configured {radii.noise} km scenario radius</Typography>}
         {category === "water" ? <Stack spacing={1.5} sx={{ mb: 2 }}>
@@ -216,7 +238,7 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
         {loading && <Box role="status" sx={{ mb: 2 }}><Typography variant="caption" color="text.secondary">Finding the next useful locations…</Typography><LinearProgress sx={{ mt: 1, borderRadius: 2 }} /></Box>}
         {error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={() => generate()}>Retry</Button>}>{error}</Alert>}
         <Divider sx={{ mb: 2.5 }} />
-        <CoverageComparison category={category} step={step} method={view === "original" ? "original" : "joint"} simulation={simulation} plan={plan} before={before} onBeforeChange={value => { setMobilePanelOpen(false); setBefore(value); setAlternativeLocation(undefined); }} />
+        <CoverageComparison category={category} step={step} method={view === "original" ? "original" : "joint"} simulation={simulation} plan={plan} before={before} onBeforeChange={value => { setPlaying(false); setMobilePanelOpen(false); setBefore(value); setAlternativeLocation(undefined); }} />
         </>}
         <Divider sx={{ my: 2.5 }} />
         {editing && <Typography role="status" variant="body2" sx={{ mb: 1 }}>Recalculating the moved proposal…</Typography>}
@@ -237,7 +259,7 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
             </Box>)}
           </Stack>
           {plan.steps.every(s => s.overlapFraction >= 0.8) && <Alert severity="warning" sx={{ mt: 1.5 }}>Small extra reach. Review the cost before adding more.</Alert>}
-          {!plan.userAdjusted && <Button size="small" onClick={() => setShowDetails(true)} sx={{ mt: 1.5, color: "text.secondary" }}>Compare methods &amp; results</Button>}
+          {!plan.userAdjusted && <Button size="small" onClick={() => { setPlaying(false); setShowDetails(true); }} sx={{ mt: 1.5, color: "text.secondary" }}>Compare methods &amp; results</Button>}
         </> : <Box sx={{ py: 1 }}>
           <Typography variant="subtitle2">{simulatedStations.length ? `${simulatedStations.length} location${simulatedStations.length === 1 ? "" : "s"} in your plan` : "Your next step"}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{simulatedStations.length ? category === "water" ? "Review your chosen locations in the basket or add another water sampling point." : "New suggestions account for every location you’ve chosen." : "Request suggestions, or use Add sensor to place a location yourself."}</Typography>
@@ -249,17 +271,24 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
       </Box>
     </Stack>
     <Box component="section" role="region" aria-label="Plan comparison map" ref={mapRef} sx={{ minWidth: 0, minHeight: 0, height: "100%", position: "relative", display: "flex", flexDirection: "column" }}>
-      {plan && !plan.userAdjusted && category === "air" && <Stack direction="row" sx={{ px: 2, py: 1, bgcolor: "background.paper", borderBottom: 1, borderColor: "divider", alignItems: "center", gap: 1, flexWrap: "wrap" }}><Typography variant="caption" sx={{ flex: 1 }}>{view === "compare" ? `O: Original · Numbers: Joint · Shading follows Joint` : view === "original" ? "Original · previous repository method" : "Joint · new planning method"}</Typography><ToggleButtonGroup size="small" exclusive value={view} aria-label="Map method" onChange={(_, next) => { if (next) { setBefore(false); setView(next); setStep(plan.steps.length); } }}><ToggleButton value="original" disabled={!plan.originalPlan.metrics}>Original</ToggleButton><ToggleButton value="joint">Joint</ToggleButton><ToggleButton value="compare" disabled={!plan.originalPlan.metrics}>Both</ToggleButton></ToggleButtonGroup></Stack>}
-      {plan && <Box sx={{ px: 2, py: 1, bgcolor: "background.paper", borderBottom: 1, borderColor: "divider" }}><SelectionSteps plan={plan} step={before || view === "original" ? -1 : step} onSelect={selectStep} /></Box>}
+      {plan && <Stack direction="row" sx={{ px: 2, py: 1, bgcolor: "#fcfcfa", borderBottom: 1, borderColor: "divider", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}><SelectionSteps plan={plan} step={before || view === "original" ? -1 : step} onSelect={selectStep} /><Typography variant="caption" sx={{ display: "none" }}>{view === "compare" ? `O: Original · Numbers: Joint · Shading follows Joint` : view === "original" ? "Original · previous repository method" : "Joint · new planning method"}</Typography><ToggleButtonGroup sx={{ display: !plan.userAdjusted && category === "air" ? { xs: "none", sm: "flex" } : "none" }} size="small" exclusive value={view} aria-label="Map method" onChange={(_, next) => { if (next) { setPlaying(false); setBefore(false); setView(next); setStep(plan.steps.length); } }}><ToggleButton value="original" disabled={!plan.originalPlan.metrics}>Original</ToggleButton><ToggleButton value="joint">Joint</ToggleButton><ToggleButton value="compare" disabled={!plan.originalPlan.metrics}>Both</ToggleButton></ToggleButtonGroup></Stack>}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <CityMap planningCategory={category} onPlanningCategoryChange={setCategory} workspace compact focusLocation={focusLocation} includePlanned={!before} onStartPlacement={() => setBefore(false)} frameStations={frameStations} coverageStations={coverageStations}
           planningCaption={before ? category === "noise" ? "Before · historical noise sites" : "Before · installed sensors only" : plan ? `${view === "original" ? "Original" : step === 0 ? "Current" : plan.userAdjusted ? "Adjusted" : "Recommended"} ${category} coverage · ${coverageStations.length} proposed ${coverageStations.length === 1 ? "station" : "stations"} · use + / − to zoom` : "Green: near · yellow: mid-range · red: monitoring gap · use + / − to zoom"}>
           {alternativeLocation && !before && view !== "original" && <Circle center={[alternativeLocation.lat, alternativeLocation.lng]} radius={(plan?.studyArea.radiusKm ?? 2) * 1000} pathOptions={{ color: "#475569", dashArray: "3 6", weight: 2, fillOpacity: 0.02 }}><Tooltip permanent direction="top">Alternative · comparison only</Tooltip></Circle>}
           {focusLocation && !before && <Circle center={[focusLocation.lat, focusLocation.lng]} radius={100} interactive={false} pathOptions={{ color: "#6d28d9", weight: 3, fillOpacity: 0.15 }} />}
           {plan && !before && view !== "joint" && plan.originalPlan.stations.map((s, i) => <Circle key={`baseline-${s.id}`} center={[s.lat, s.lng]} radius={(plan?.studyArea.radiusKm ?? 2) * 1000} interactive={false} pathOptions={{ color: "#b45309", fillOpacity: 0.04, dashArray: "5 5" }}>{stationMarker(s, i, true)}</Circle>)}
-          {plan && !before && view !== "original" && plan.jointPlan.stations.slice(0, step).map((s, i) => <Circle key={`joint-${s.id}`} center={[s.lat, s.lng]} radius={(plan?.studyArea.radiusKm ?? 2) * 1000} interactive={false} pathOptions={{ color: "#6d28d9", fillOpacity: 0.04 }}>{stationMarker(s, i, false)}</Circle>)}
+          {plan && !before && view !== "original" && plan.jointPlan.stations.slice(0, step).map((s, i) => <AnimatedCoverage key={`joint-${s.id}`} lat={s.lat} lng={s.lng} radiusKm={s.radiusKm ?? plan.studyArea.radiusKm}>{stationMarker(s, i, false)}</AnimatedCoverage>)}
         </CityMap>
       </Box>
+    {!plan && category !== "water" && <Box sx={{ display: { xs: "none", md: "block" }, position: "absolute", bottom: 26, right: 24, zIndex: 1050, width: 294, bgcolor: "#fffffff5", border: "1px solid white", borderRadius: "20px", p: 2.5, boxShadow: "0 12px 48px #23382d1a" }}>
+      <Typography variant="overline" sx={{ fontSize: 10, letterSpacing: ".12em", color: "text.secondary" }}>Smarter placement</Typography>
+      <Typography sx={{ fontSize: 21, fontWeight: 650, letterSpacing: "-.6px", lineHeight: 1.2, mt: .5, mb: 1 }}>Make every sensor count.</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Find three complementary locations using the current network and your {suggestionRadius} km radius.</Typography>
+      <Button fullWidth variant="contained" aria-label="Optimize network" endIcon={<ArrowForwardRoundedIcon />} disabled={invalid || loading || editing || !suggestionRadiusValid} onClick={() => generate(3)}>{loading ? "Calculating your network…" : "Optimize network"}</Button>
+      {loading && <LinearProgress aria-label="Optimizing sensor placement" sx={{ mt: 1.5, borderRadius: 1 }} />}
+    </Box>}
+    {plan && plan.steps.length > 0 && !before && view === "joint" && !basketOpen && !showDetails && !mobilePanelOpen && <OptimizationReveal plan={plan} step={step} playing={playing} onPause={() => setPlaying(false)} onPlay={() => { if (step >= plan.steps.length) setStep(0); setPlaying(true); }} onSelect={selectStep} onCompare={() => { setPlaying(false); setShowDetails(true); }} />}
     </Box>
     {!mobilePanelOpen && <Stack direction="row" sx={{ display: { xs: "flex", md: "none" }, position: "absolute", bottom: 24, left: 16, right: 16, gap: 1, zIndex: 1100 }}><Button variant="contained" sx={{ flex: 1, height: 44, boxShadow: "0 4px 16px #20332824" }} onClick={() => setMobilePanelOpen(true)}>Plan sensors</Button><Button variant="outlined" sx={{ bgcolor: "background.paper" }} onClick={() => setBasketOpen(true)}>Basket · {simulatedStations.length + (plan?.steps.length ?? 0)}</Button></Stack>}
     <Dialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} maxWidth="xs" fullWidth>

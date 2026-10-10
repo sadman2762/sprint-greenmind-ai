@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
+from app.services.environmental_conditions import get_environmental_conditions
 from app.services.processed_dataset_service import (
     get_dataset_summary,
     get_latest_station_measurements,
@@ -11,6 +12,11 @@ router = APIRouter(
     prefix="/api/official-dataset",
     tags=["Official Dataset"],
 )
+
+
+@router.get("/conditions")
+def environmental_conditions() -> dict[str, Any]:
+    return get_environmental_conditions()
 
 
 @router.get("/summary")
