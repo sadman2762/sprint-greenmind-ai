@@ -5,7 +5,8 @@ import time
 from collections import OrderedDict
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request
+from app.services.outbound import urlopen
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -49,3 +50,35 @@ def lookup_address(lat: float, lng: float):
 @router.get("/reverse")
 def reverse(lat: float = Query(ge=-90, le=90, allow_inf_nan=False), lng: float = Query(ge=-180, le=180, allow_inf_nan=False)):
     return lookup_address(lat, lng)
+
+
+@router.get('/search')
+def search(query: str = Query(min_length=2, max_length=160)):
+    """User-triggered named-place lookup bounded to the Debrecen area."""
+    global _next_request
+    key = ('search', query.strip().casefold())
+    with _lock:
+        cached = _cache.get(key)
+        if cached and time.monotonic() - cached[0] < 86400:
+            return cached[1]
+        delay = _next_request - time.monotonic()
+        if delay > 0:
+            time.sleep(delay)
+        _next_request = time.monotonic() + 1.1
+        url = 'https://nominatim.openstreetmap.org/search?' + urlencode({
+            'q': query.strip(), 'format': 'jsonv2', 'limit': 5, 'countrycodes': 'hu',
+            'viewbox': '21.4,47.7,21.95,47.35', 'bounded': 1,
+        })
+        try:
+            with urlopen(Request(url, headers={'User-Agent': _USER_AGENT, 'Accept-Language': 'en'}), timeout=8) as response:
+                data = json.load(response)
+            from app.services.recommendation_engine import is_inside_debrecen
+            matches = [{'name': row['display_name'], 'latitude': float(row['lat']), 'longitude': float(row['lon'])}
+                       for row in data if is_inside_debrecen(float(row['lat']), float(row['lon']))]
+        except (HTTPError, URLError, TimeoutError, ValueError, KeyError, TypeError):
+            raise HTTPException(502, 'OpenStreetMap place search is unavailable.') from None
+        result = {'matches': matches, 'attribution': '© OpenStreetMap contributors', 'provider': 'Nominatim'}
+        _cache[key] = (time.monotonic(), result)
+        if len(_cache) > 1000:
+            _cache.popitem(last=False)
+        return result

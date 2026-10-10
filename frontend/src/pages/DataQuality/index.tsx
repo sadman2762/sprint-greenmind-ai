@@ -45,8 +45,7 @@ interface QualityCard {
   background: string;
 }
 
-const API_URL =
-  "http://localhost:8000/api/data-quality/";
+const API_URL = "/api/data-quality/";
 
 function QualityMetricCard({
   card,

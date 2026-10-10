@@ -1,3 +1,6 @@
+import { useVoiceActions } from "../../voice/actionContext";
+import MapVoiceController from "../../voice/MapVoiceController";
+import { isInsideDebrecenBoundary } from "../../utils/isInsideDebrecenBoundary";
 import LiveTransitLayer from "./LiveTransitLayer";
 import RadiusInput from "./RadiusInput";
 import LocationAddress from "./LocationAddress";
@@ -117,7 +120,7 @@ interface CityMapProps {
 }
 
 function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, children, coverageStations = EMPTY_STATIONS, frameStations = EMPTY_STATIONS, compact = false, workspace = false, onStartPlacement, planningCaption, includePlanned = true, focusLocation }: CityMapProps) {
-  const { radii, overrides, radiusFor, placementRadii, setPlacementRadius } = useRanges();
+  const { radii, overrides, radiusFor, placementRadii, setPlacementRadius, setRadius, setOverride } = useRanges();
   const { selection, select, close } = useMapInspector();
   const [connectionFilter, setConnectionFilter] = useState<"all" | "sensors" | "transit">("all");
   const [placementRadiusValid, setPlacementRadiusValid] = useState(true);
@@ -139,7 +142,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
   const [showLiveTransit, setShowLiveTransit] = useState(false);
   const [showTraffic, setShowTraffic] = useState(false);
   const [showCoverageCircles, setShowCoverageCircles] = useState(false);
-  const { simulatedStations, isPlacingCustomPin, setIsPlacingCustomPin, customPinTier, setCustomPinTier } = useSimulation();
+  const { simulatedStations, isPlacingCustomPin, setIsPlacingCustomPin, customPinTier, setCustomPinTier, addCustomPin, updateStationPosition, removeSimulatedStation } = useSimulation();
   const [notification, setNotification] = useState<{ message: string; severity: "success" | "warning" | "info" } | null>(null);
   const theme = useTheme();
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
@@ -206,6 +209,60 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
     else setShowHeatmap(true);
   }
 
+  useVoiceActions("map", {
+    set_network: c => { changeView(c.category!); return { ok: true, message: `Showing ${c.category} monitoring.` }; },
+    set_layer: c => {
+      const setters = { stations: setShowStations, coverage: setShowHeatmap, outlines: setShowCoverageCircles, historical_transit: setShowTraffic, live_transit: setShowLiveTransit };
+      setters[c.layer!](c.visible!);
+      return { ok: true, message: `${c.layer} layer ${c.visible ? "enabled" : "hidden"}. Enabling a data layer does not establish feed availability.` };
+    },
+    set_radius: c => {
+      if (c.scope === "category") setRadius(c.category as SensorTier, c.radiusKm!);
+      else if (c.scope === "placement") setPlacementRadius(c.category as SensorTier, c.radiusKm!);
+      else {
+        const station = graphNodes.find(n => n.id === c.sensorId)?.station;
+        if (!station) return { ok: false, message: "Choose an installed or chosen sensor from get_context." };
+        setOverride(`${getStationCategory(station)}:${station.stationCode ?? station.id}`, c.radiusKm!);
+      }
+      return { ok: true, message: `Scenario radius set to ${c.radiusKm} km; this is not verified detection reach.` };
+    },
+    add_sensor: c => {
+      if (loading || error || !isInsideDebrecenBoundary(c.latitude!, c.longitude!)) return { ok: false, message: "Place the sensor inside the Debrecen study boundary after station data loads." };
+      if (simulatedStations.some(s => s.lat === c.latitude && s.lng === c.longitude && getStationCategory(s) === c.category)) return { ok: false, message: "A chosen sensor of this type already exists at these coordinates." };
+      onStartPlacement?.();
+      const id = addCustomPin(c.latitude!, c.longitude!, stations, c.category as SensorTier);
+      setOverride(`${c.category}:${id}`, c.radiusKm!); setIsPlacingCustomPin(false);
+      return { ok: true, message: `Added one ${c.category} planning sensor with ${c.radiusKm} km radius.`, data: { id: `custom-${id}`, latitude: c.latitude, longitude: c.longitude } };
+    },
+    move_sensor: c => {
+      const sensor = simulatedStations.find(s => `${s.isCustom ? "custom" : "simulated"}-${s.id}` === c.sensorId);
+      if (!sensor || !isInsideDebrecenBoundary(c.latitude!, c.longitude!)) return { ok: false, message: "Only chosen sensors can be moved, within the Debrecen boundary." };
+      if (simulatedStations.some(s => s.id !== sensor.id && s.lat === c.latitude && s.lng === c.longitude && getStationCategory(s) === getStationCategory(sensor))) return { ok: false, message: "Another chosen sensor already occupies this location." };
+      updateStationPosition(sensor.id, c.latitude!, c.longitude!, stations);
+      return { ok: true, message: "Chosen sensor moved. Planning coverage will refresh." };
+    },
+    remove_sensor: c => {
+      const sensor = simulatedStations.find(s => `${s.isCustom ? "custom" : "simulated"}-${s.id}` === c.sensorId);
+      if (!sensor) return { ok: false, message: "Only a chosen sensor can be removed; installed stations are protected." };
+      removeSimulatedStation(sensor.id); return { ok: true, message: `Removed ${sensor.name} from the local plan.` };
+    },
+    show_connections: c => {
+      const node = c.sensorId ? graphNodes.find(n => n.id === c.sensorId) : graphNode;
+      if (!node) return { ok: false, message: "Choose an exact sensor ID first." };
+      if (c.distanceKm !== undefined) setConnectionDistance(c.distanceKm);
+      selectGraphNode(node); return { ok: true, message: "Showing geometric proximity and configured overlap relationships; not causal links." };
+    },
+    reset_view: () => { setResetKey(n => n + 1); close(false); return { ok: true, message: "Returned to the Debrecen network view." }; },
+    search_location: async (c, signal) => {
+      const response = await fetch(`/api/geocoding/search?query=${encodeURIComponent(c.query!)}`, { signal });
+      if (!response.ok) return { ok: false, message: "Address search is unavailable. Use exact coordinates or a known sensor." };
+      return { ok: true, message: "OpenStreetMap matches. Resolve ambiguous places before placement.", data: await response.json() };
+    },
+  }, () => ({ view, loading, error, layers: { stations: showStations, coverage: showHeatmap, outlines: showCoverageCircles, historical_transit: showTraffic, live_transit: showLiveTransit },
+    selectedId: selection?.id ?? null, radiiKm: radii, placementRadiiKm: placementRadii,
+    sensors: graphNodes.filter(n => n.category !== "transit").slice(0, 150).map(n => ({ id: n.id, name: n.name, category: n.category, latitude: n.lat, longitude: n.lng, radiusKm: n.radiusKm, source: n.source })),
+    historicalTransitSource: "DKV stop statistics, May 2026. Not live vehicles." }));
+
   if (loading) return <Card sx={{ height: workspace ? "100%" : "auto", display: "grid", placeItems: "center", p: 6 }}><CircularProgress aria-label="Loading monitoring map" /></Card>;
   if (error) return <Alert severity="error" sx={{ mt: 3 }} action={<Button color="inherit" onClick={() => { setError(""); setLoading(true); setLoadAttempt((value) => value + 1); }}>Retry map</Button>}>{error}</Alert>;
 
@@ -258,6 +315,7 @@ function CityMapWorkspace({ planningCategory = "air", onPlanningCategoryChange, 
           <MapContainer center={[47.5316, 21.6273]} zoom={10} minZoom={9} maxZoom={16} maxBoundsViscosity={0.3} scrollWheelZoom={workspace} preferCanvas style={{ height: "100%", width: "100%" }}>
             <TileLayer attribution="© OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <DebrecenBoundary />
+            <MapVoiceController nodes={graphNodes} />
             <MapBoundsController focusLocation={focusLocation} stations={mapFrameStations} resetStations={[...mapFrameStations, ...simulatedStations]} resetKey={resetKey} />
             {!overview && showHeatmap && <Pane name="coverage-grid"><CoverageHeatmap stations={effectiveStations} category={coverageCategory} visibleBands={visibleBands} /></Pane>}
             {showCoverageCircles && <StationHalosLayer stations={visibleStations} view={view} />}

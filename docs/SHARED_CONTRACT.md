@@ -121,3 +121,7 @@ The user authorized choosing a radius during placement and dragging unapplied pu
 ## Live transport extension
 
 User-authorized `GET /api/transit/vehicles` proxies full GTFS-RT VehiclePositions snapshots with server-only credentials. Source labels must distinguish BKK Budapest from DKV Debrecen. Live vehicles are a separate optional map layer, not historical DKV activity or an optimization input. Unknown mode/route/speed remain unknown; timestamps and stale positions are explicit. See [LIVE_TRANSIT.md](LIVE_TRANSIT.md) for schema, configuration and polling behavior.
+
+## Voice control
+
+The user requested Azure GPT-Live 1 voice control for the map and sensor placement. `/api/voice/status` reports non-secret configuration; `/api/voice/stream` relays a server-authenticated Azure WebSocket with fixed, allowlisted application tools and 24 kHz PCM audio. GPT-Live uses a separately configured Responses deployment for tool selection. Existing planner and map handlers own all mutations and validation. Local-only mode blocks session creation; no microphone starts automatically. See [VOICE_CONTROL.md](VOICE_CONTROL.md) for actions, configuration, protocol and live-audio verification.

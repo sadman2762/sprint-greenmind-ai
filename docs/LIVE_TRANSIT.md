@@ -42,3 +42,11 @@ backend/.venv/bin/python backend/tools/update_transit_routes.py
 The command downloads the official public GTFS archive, extracts only `routes.txt` into ignored `backend/.cache/transit/bkk-routes.txt`, and leaves the source datasets unchanged. Refresh this cache when the timetable changes. BKK snapshots automatically use this cache unless `TRANSIT_GTFS_ROUTES_FILE` overrides it. Extended GTFS type 109 is shown as HÉV/suburban rail. Vehicles without a matching route retain the unknown icon.
 
 The map offers a transport-type filter with counts and a **Budapest** button for the confirmed BKK source. **Show vehicles** fits the currently filtered positions. A vehicle's feed label is displayed separately from its ID: in this feed the label often describes its destination.
+
+## Network route independent of voice
+
+BKK VehiclePositions is publicly accessible and defaults to a direct HTTPS connection when no explicit network mode is configured. This prevents inherited corporate `HTTPS_PROXY` settings from making BKK depend on the VPN used for Azure. Voice routing is unchanged.
+
+Set `TRANSIT_NETWORK_MODE=direct|auto|proxy` in ignored `backend/.env` to override transport routing only. An explicit `GREENMIND_NETWORK_MODE` is respected when no transit override exists. Other/custom GTFS providers retain automatic routing by default. Proxy URLs continue to come from `GREENMIND_PROXY_URL` or system/environment settings. TLS certificate verification is always enabled. Changing the transit network mode invalidates the cached result, including cached failures.
+
+Direct access to the actual BKK feed returned HTTP 200 with a valid protobuf snapshot during verification. That verifies the route avoids the configured HTTP proxy; the operating system's VPN status must be checked separately when testing a VPN-disconnected network.

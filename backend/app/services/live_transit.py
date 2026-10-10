@@ -6,7 +6,8 @@ import threading
 import time
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
-from urllib.request import Request, urlopen
+from urllib.request import Request
+from app.services.outbound import urlopen
 
 from dotenv import load_dotenv
 from fastapi import HTTPException
@@ -98,7 +99,10 @@ def snapshot():
     if key:
         query[os.getenv('TRANSIT_API_KEY_PARAM', 'key')] = key
     request_url = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), ''))
-    config_key = (request_url, provider, os.getenv('TRANSIT_GTFS_ROUTES_FILE'))
+    # BKK is publicly reachable. Don't tie it to Azure's corporate proxy route.
+    # Explicit administrator/service configuration still takes precedence.
+    network_mode = os.getenv('TRANSIT_NETWORK_MODE') or os.getenv('GREENMIND_NETWORK_MODE') or ('direct' if bkk else 'auto')
+    config_key = (request_url, provider, os.getenv('TRANSIT_GTFS_ROUTES_FILE'), network_mode, os.getenv('GREENMIND_PROXY_URL'))
     with _lock:
         if config_key == _cache_key and time.monotonic() < _cache_until:
             if isinstance(_cache, HTTPException):
@@ -106,7 +110,7 @@ def snapshot():
             return _cache
         try:
             request = Request(request_url, headers={'Accept': 'application/x-protobuf', 'User-Agent': 'GreenMindAI/0.2'})
-            with urlopen(request, timeout=8) as response:
+            with urlopen(request, timeout=8, network_mode=network_mode) as response:
                 content = response.read(20_000_001)
             if len(content) > 20_000_000:
                 raise ValueError('Feed too large')

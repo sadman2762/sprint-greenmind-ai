@@ -1,3 +1,4 @@
+import { useVoiceActions } from "../../voice/actionContext";
 import { useEditablePlan } from "./useEditablePlan";
 import RadiusInput from "../../components/map/RadiusInput";
 import SuggestedStationMarker from "../../components/map/SuggestedStationMarker";
@@ -84,8 +85,8 @@ interface PlannerSettings {
   separation: string; setSeparation: (distance: string) => void;
 }
 function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, setCategory, basketOpen, setBasketOpen, stationCount, setStationCount, environmentalWeight, setEnvironmentalWeight, separation, setSeparation }: PlannerSettings) {
-  const { simulatedStations, setCustomPinTier, setIsPlacingCustomPin } = useSimulation();
-  const { radii, overrides } = useRanges();
+  const { simulatedStations, setCustomPinTier, setIsPlacingCustomPin, applySuggestedLocations } = useSimulation();
+  const { radii, overrides, setOverride } = useRanges();
   const [suggestionRadius, setSuggestionRadius] = useState(radii[category]);
   const [suggestionRadiusValid, setSuggestionRadiusValid] = useState(true);
   const [before, setBefore] = useState(false);
@@ -113,22 +114,27 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
     request.current?.abort();
     setPlan(null); setLoading(false); setError(""); setStep(0); setView("joint"); setShowDetails(false);
   }
-  async function generate(count: 1 | 2 | 3 = stationCount) {
-    if (category === "water") return;
+  async function generate(count: 1 | 2 | 3 = stationCount, voiceSignal?: AbortSignal) {
+    if (category === "water") return { ok: false, message: "Automatic water planning is unavailable." };
     setStationCount(count); setAlternativeLocation(undefined); setBefore(false); setFocusLocation(undefined);
     request.current?.abort();
     const controller = new AbortController(); request.current = controller;
+    const cancelVoice = () => controller.abort();
+    voiceSignal?.addEventListener("abort", cancelVoice, { once: true });
     setLoading(true); setError(""); setPlan(null);
     try {
       const result = await getJointPlan({
         planningCategory: category, newSensorRadiusKm: suggestionRadius, coverageRadiiKm: radii, sensorRadiusOverridesKm: overrides, stationCount: count, environmentalWeight, minSeparationKm: Number(separation),
         existingSimulation: simulatedStations.map((s) => ({ id: String(s.id), name: s.name, lat: s.lat, lng: s.lng, category: getStationCategory(s) ?? "air", hardwareGrade: "unspecified" })),
       }, controller.signal);
-      if (!controller.signal.aborted) { setPlan({ value: result, signature: rangeSignature }); setStep(result.steps.length); setView("joint"); setShowDetails(false); }
+      if (!controller.signal.aborted) { setPlan({ value: result, signature: rangeSignature }); setStep(result.steps.length); setView("joint"); setShowDetails(false); return { ok: true, message: `Generated ${result.steps.length} suggestions. They are not applied yet.`, data: { stations: result.jointPlan.stations, metrics: result.jointPlan.metrics } }; }
+      return { ok: false, message: "Request cancelled." };
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not generate a plan.");
+      return { ok: false, message: controller.signal.aborted ? "Request cancelled." : "Could not generate a plan." };
     } finally {
-      if (!controller.signal.aborted) setLoading(false);
+      voiceSignal?.removeEventListener("abort", cancelVoice);
+      if (!controller.signal.aborted || voiceSignal?.aborted) setLoading(false);
     }
   }
   const current = plan && step > 0 ? plan.steps[step - 1] : null;
@@ -149,6 +155,43 @@ function JointPlannerWorkspace({ mobilePanelOpen, setMobilePanelOpen, category, 
     setBefore(false); setView("joint"); setStep(next); setAlternativeLocation(undefined); setFocusLocation(undefined);
   }
   const focusPin = (lat: number, lng: number) => { setBasketOpen(false); setMobilePanelOpen(false); setBefore(false); setView("joint"); if (plan) setStep(plan.steps.length); setFocusLocation(previous => ({ lat, lng, token: (previous?.token ?? 0) + 1 })); };
+  useVoiceActions("planner", {
+    suggest_sensors: async (c, signal) => {
+      if (loading || editing || invalid || !suggestionRadiusValid) return { ok: false, message: "Finish the current request or correct planning settings first." };
+      return generate(c.count!, signal);
+    },
+    set_radius: c => { setSuggestionRadius(c.radiusKm!); setSuggestionRadiusValid(true); return { ok: true, message: `New suggestion radius set to ${c.radiusKm} km. Previous suggestions are invalidated.` }; },
+    apply_suggestions: () => {
+      if (!plan || loading || editing) return { ok: false, message: "No completed suggestions to apply." };
+      const added = applySuggestedLocations(plan.jointPlan.stations.map(s => ({ ...s, radiusKm: s.radiusKm ?? plan.studyArea.radiusKm })));
+      for (const sensor of added) if (sensor.radiusKm !== undefined) setOverride(`${sensor.category}:${sensor.id}`, sensor.radiusKm);
+      setBasketOpen(false);
+      return { ok: true, message: `Applied ${added.length} locations to the local plan. No physical sensors were installed.`, data: added };
+    },
+    discard_suggestions: () => { reset(); return { ok: true, message: "Unapplied suggestions discarded. Chosen sensors retained." }; },
+    open_basket: c => { setBasketOpen(c.visible!); return { ok: true, message: c.visible ? "Location basket opened." : "Location basket closed." }; },
+    select_step: c => { if (!plan || c.index! > plan.steps.length) return { ok: false, message: "That planning step does not exist." }; selectStep(c.index!); return { ok: true, message: `Showing step ${c.index}.` }; },
+    set_comparison: c => {
+      if ((c.view === "original" || c.view === "both") && (!plan || plan.userAdjusted || category !== "air" || !plan.originalPlan.metrics)) return { ok: false, message: "Original comparison requires an unedited air plan." };
+      setBefore(c.view === "before"); setView(c.view === "original" ? "original" : c.view === "both" ? "compare" : "joint");
+      if (plan) setStep(plan.steps.length);
+      return { ok: true, message: `Showing ${c.view} view.` };
+    },
+    move_suggestion: async (c, signal) => {
+      if (!plan || editing || loading || c.index! < 1 || c.index! > plan.steps.length) return { ok: false, message: "Select a current proposal (1-based index) after calculations finish." };
+      const ok = await move(c.index! - 1, c.latitude!, c.longitude!, signal);
+      return { ok, message: ok ? "Proposal moved and coverage recalculated; still unapplied." : "Proposal could not be moved. Check the boundary and spacing." };
+    },
+    focus_sensor: c => {
+      const station = plan?.steps[(c.index ?? 0) - 1]?.station;
+      if (!station) return { ok: false, message: "That suggestion does not exist." };
+      focusPin(station.lat, station.lng); return { ok: true, message: `Showing suggestion ${c.index}.` };
+    },
+    export_plan: () => { if (!plan || editing || loading) return { ok: false, message: "Generate a completed plan before exporting." }; downloadBrief(plan); return { ok: true, message: "Placement plan download started." }; },
+  }, () => ({ category, loading, editing, before, method: view, step, suggestionRadiusKm: suggestionRadius,
+    suggestions: plan?.steps.map((s, i) => ({ index: i + 1, ...s.station, addedKm2: s.marginalKm2 })) ?? [],
+    metrics: plan?.jointPlan.metrics ?? null, existingMetrics: plan?.existingMetrics ?? null,
+    chosenCount: simulatedStations.length, automaticWaterPlanning: false }));
   return <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "332px minmax(0, 1fr)" }, height: "100%", minHeight: 0, overflow: "hidden", position: "relative" }}>
     <Stack component="aside" aria-label="Plan your network" sx={{ bgcolor: "background.paper", borderRight: { md: "1px solid #e0e6e1" }, minHeight: 0, display: { xs: mobilePanelOpen ? "flex" : "none", md: "flex" }, position: { xs: "absolute", md: "relative" }, bottom: 0, width: { xs: "100%", md: "auto" }, maxHeight: { xs: "80%", md: "100%" }, height: { xs: "80%", md: "100%" }, zIndex: 1200, borderRadius: { xs: "16px 16px 0 0", md: 0 }, boxShadow: { xs: "0 -8px 40px #20332820", md: "none" } }}>
       <Stack direction="row" sx={{ display: { xs: "flex", md: "none" }, px: 2, py: 1, alignItems: "center", justifyContent: "space-between", borderBottom: 1, borderColor: "divider" }}><Typography variant="subtitle2">Plan your network</Typography><IconButton aria-label="Close planning panel" onClick={() => setMobilePanelOpen(false)}><CloseRoundedIcon /></IconButton></Stack>

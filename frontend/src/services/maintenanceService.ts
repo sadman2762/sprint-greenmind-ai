@@ -50,11 +50,10 @@ export interface UpdateWorkOrderInput {
   estimatedHours?: number;
 }
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = "/api/maintenance-orders";
 
 export async function fetchAllWorkOrders(): Promise<MaintenanceOrdersResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/maintenance-orders/`);
+  const res = await fetch(`${API_BASE_URL}/`);
   if (!res.ok) {
     throw new Error(`Failed to load work orders: ${res.statusText}`);
   }
@@ -62,7 +61,7 @@ export async function fetchAllWorkOrders(): Promise<MaintenanceOrdersResponse> {
 }
 
 export async function createWorkOrderApi(input: CreateWorkOrderInput): Promise<WorkOrder> {
-  const res = await fetch(`${API_BASE_URL}/api/maintenance-orders/`, {
+  const res = await fetch(`${API_BASE_URL}/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -78,7 +77,7 @@ export async function updateWorkOrderApi(
   orderId: string,
   input: UpdateWorkOrderInput
 ): Promise<WorkOrder> {
-  const res = await fetch(`${API_BASE_URL}/api/maintenance-orders/${orderId}`, {
+  const res = await fetch(`${API_BASE_URL}/${orderId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -91,7 +90,7 @@ export async function updateWorkOrderApi(
 }
 
 export async function cancelWorkOrderApi(orderId: string): Promise<WorkOrder> {
-  const res = await fetch(`${API_BASE_URL}/api/maintenance-orders/${orderId}`, {
+  const res = await fetch(`${API_BASE_URL}/${orderId}`, {
     method: "DELETE",
   });
   if (!res.ok) {

@@ -11,3 +11,5 @@ openai
 python-dotenv
 pytest
 gtfs-realtime-bindings==2.0.0
+
+websockets>=15,<18
