@@ -77,3 +77,9 @@ def test_websocket_never_replays_after_session_has_connected():
                 raise ConnectionResetError('stream interrupted')
     asyncio.run(check())
     assert attempts == ['http://proxy.test:8080', 'close']
+
+
+def test_per_request_direct_route_does_not_change_global_proxy(monkeypatch):
+    monkeypatch.setenv('GREENMIND_NETWORK_MODE', 'proxy')
+    assert outbound.proxy_routes('https://go.bkk.hu', mode='direct') == [None]
+    assert outbound.proxy_routes('wss://azure.test/live') == ['http://proxy.test:8080']

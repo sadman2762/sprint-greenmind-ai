@@ -12,11 +12,11 @@ from urllib.request import ProxyHandler, Request, build_opener, getproxies, prox
 from websockets.asyncio.client import connect
 
 
-def proxy_routes(url):
+def proxy_routes(url, mode=None):
     parts = urlsplit(url)
     if parts.hostname in {'localhost', '127.0.0.1', '::1'}:
         return [None]
-    mode = os.getenv('GREENMIND_NETWORK_MODE', 'auto').strip().lower()
+    mode = (mode if mode is not None else os.getenv('GREENMIND_NETWORK_MODE', 'auto')).strip().lower()
     if mode not in {'auto', 'direct', 'proxy'}:
         raise ValueError('GREENMIND_NETWORK_MODE must be auto, direct or proxy.')
     if mode == 'direct':
@@ -41,9 +41,9 @@ def connection_unavailable(error):
     return isinstance(error, OSError) and not isinstance(error, ssl.SSLError)
 
 
-def urlopen(request, timeout=8):
+def urlopen(request, timeout=8, *, network_mode=None):
     url = request.full_url if isinstance(request, Request) else request
-    routes = proxy_routes(url)
+    routes = proxy_routes(url, network_mode)
     for index, proxy in enumerate(routes):
         handler = ProxyHandler({'https': proxy, 'http': proxy} if proxy else {})
         try:

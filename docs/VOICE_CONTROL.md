@@ -72,3 +72,5 @@ A session already in progress is never replayed after a disconnect. Reconnect fr
 These options cover voice, geocoding and live GTFS upstream connections; the legacy text Copilot SDK retains its own environment-based proxy behavior. The local placement algorithm itself does not require Azure or a VPN.
 
 On the development Mac, an authenticated Azure voice session was verified through the configured proxy. Direct Azure TLS timed out on that network. Tests cover a dead proxy followed by working direct access, but this does not prove that the current network permits Azure with VPN disabled. If both direct access and the permitted proxy fail, the backend needs a network that can reach Azure, or deployment to an accessible HTTPS host with WebSocket support. A static-only/serverless frontend deployment is insufficient for the persistent voice relay.
+
+BKK transport has an independent default: direct HTTPS when no network mode is explicitly configured. `TRANSIT_NETWORK_MODE` overrides only the vehicle feed; it never changes Azure voice routing. See [LIVE_TRANSIT.md](LIVE_TRANSIT.md).

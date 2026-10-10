@@ -53,7 +53,7 @@ def test_invalid_and_differential_payloads_are_rejected():
 
 @pytest.fixture
 def clean_config(monkeypatch):
-    for name in ['TRANSIT_VEHICLE_POSITIONS_URL', 'TRANSIT_API_KEY', 'API_KEY', 'TRANSIT_API_KEY_PARAM', 'TRANSIT_GTFS_ROUTES_FILE']:
+    for name in ['TRANSIT_VEHICLE_POSITIONS_URL', 'TRANSIT_API_KEY', 'API_KEY', 'TRANSIT_API_KEY_PARAM', 'TRANSIT_GTFS_ROUTES_FILE', 'TRANSIT_NETWORK_MODE', 'GREENMIND_NETWORK_MODE']:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(live, '_cache_until', 0)
 
@@ -113,3 +113,30 @@ def test_static_routes_define_modes_without_guessing(tmp_path, monkeypatch):
     assert metadata['trolley']['mode'] == 'trolley'
     assert metadata['suburban']['mode'] == 'suburban'
     assert metadata['unknown']['mode'] == 'default'
+
+
+def test_bkk_defaults_to_direct_without_changing_voice_routing(clean_config, monkeypatch):
+    monkeypatch.setenv('API_KEY', 'synthetic-secret')
+    monkeypatch.delenv('GREENMIND_NETWORK_MODE', raising=False)
+    monkeypatch.delenv('TRANSIT_NETWORK_MODE', raising=False)
+    def request(req, **kwargs):
+        assert kwargs['network_mode'] == 'direct'
+        return io.BytesIO(feed().SerializeToString())
+    monkeypatch.setattr(live, 'urlopen', request)
+    assert live.snapshot()['vehicles']
+    assert 'GREENMIND_NETWORK_MODE' not in live.os.environ
+
+
+def test_transit_route_override_invalidates_cached_proxy_failure(clean_config, monkeypatch):
+    monkeypatch.setenv('API_KEY', 'synthetic-secret')
+    monkeypatch.setenv('TRANSIT_NETWORK_MODE', 'proxy')
+    calls = []
+    def request(req, **kwargs):
+        calls.append(kwargs['network_mode'])
+        if kwargs['network_mode'] == 'proxy': raise ConnectionRefusedError('Unavailable corporate proxy')
+        return io.BytesIO(feed().SerializeToString())
+    monkeypatch.setattr(live, 'urlopen', request)
+    with pytest.raises(HTTPException): live.snapshot()
+    monkeypatch.setenv('TRANSIT_NETWORK_MODE', 'direct')
+    assert live.snapshot()['vehicles']
+    assert calls == ['proxy', 'direct']
