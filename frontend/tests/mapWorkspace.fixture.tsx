@@ -1,3 +1,5 @@
+import ActionProvider from "../src/voice/ActionProvider";
+import { RangeProvider } from "../src/context/RangeContext";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Button, CssBaseline, Typography } from "@mui/material";
@@ -21,7 +23,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeCustomProvider>
       <CssBaseline />
-      <SimulationProvider><Fixture /></SimulationProvider>
+      <SimulationProvider><RangeProvider><ActionProvider><Fixture /></ActionProvider></RangeProvider></SimulationProvider>
     </ThemeCustomProvider>
   </StrictMode>,
 );

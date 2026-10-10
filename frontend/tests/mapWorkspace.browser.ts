@@ -22,7 +22,7 @@ beforeEach(async () => {
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.port === "8000" || url.pathname.startsWith("/api/") || url.pathname === "/traffic") {
-      const body = url.pathname === "/traffic"
+      const body = url.pathname === "/api/geocoding/reverse" ? { displayName: "Synthetic mapped address", address: {} } : url.pathname === "/api/plans/noise-sites" ? { stations: [] } : url.pathname === "/traffic"
         ? { locations: [{ stopName: "Test Transit Stop", latitude: 47.52, longitude: 21.655, trafficActivityScore: 50, passengerFrequencyTotal: 12, passengersInTotal: 5, passengersOutTotal: 7 }] }
         : { stations, count: stations.length, source: "Synthetic browser-test fixture" };
       await route.fulfill({ json: body, headers: { "access-control-allow-origin": "*" } });
@@ -75,7 +75,13 @@ test("selecting and switching stations uses one non-overlapping inspector and pr
     const panel = document.querySelector("aside")!.getBoundingClientRect();
     return map.right <= panel.left + 1;
   });
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  // ResizeObserver and Leaflet invalidateSize commit asynchronously; wait for the actual invariant.
+  await page.waitForFunction(({ x, y }) => {
+    const map = document.querySelector('.leaflet-container')!.getBoundingClientRect();
+    const marker = document.querySelector('[title="Test Air Alpha"]')!.getBoundingClientRect();
+    return Math.abs(marker.x + marker.width / 2 - map.x - map.width / 2 - x) < 3
+      && Math.abs(marker.y + marker.height / 2 - map.y - map.height / 2 - y) < 3;
+  }, { x: before.x, y: before.y });
   await waitForPaintedCoverage();
   const after = await geometry();
   assert.ok(after.map.width < before.map.width);
@@ -157,7 +163,7 @@ test("water and transit points use category-specific inspector content", async (
   await panel.getByText("Water measurements are not included in this station response.").waitFor();
   assert.doesNotMatch(await panel.innerText(), /Key Pollutant/);
   await page.getByRole("button", { name: "Layers", exact: true }).click();
-  await page.getByRole("switch", { name: "DKV Transit", exact: true }).click();
+  await page.getByRole("switch", { name: "DKV stops · historical", exact: true }).click();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Test Transit Stop", exact: true }).click();
   await panel.getByText("Test Transit Stop", { exact: true }).first().waitFor();
@@ -169,7 +175,7 @@ test("proposed and custom placements retain controls in the inspector", async ()
   const proposed = page.locator('.leaflet-marker-icon[class*="simulated-sensor-marker"]');
   await proposed.click();
   const panel = page.getByRole("complementary");
-  await panel.getByText("Planned location · not an installed sensor.").waitFor();
+  await panel.getByText("Planned location only. No sensor has been installed here, so there are no measured air, noise or water readings for this pin.").waitFor();
   await panel.getByRole("button", { name: "Remove From Simulation" }).click();
   await panel.waitFor({ state: "detached" });
   assert.equal(await page.getByLabel("Simulation count").innerText(), "0");
@@ -177,7 +183,7 @@ test("proposed and custom placements retain controls in the inspector", async ()
   await page.locator(".leaflet-container").click({ position: { x: 700, y: 300 } });
   const custom = page.locator('.leaflet-marker-icon[class*="custom-pin-marker"]');
   await custom.click();
-  await panel.getByText("Planned location · not an installed sensor.").waitFor();
+  await panel.getByText("Planned location only. No sensor has been installed here, so there are no measured air, noise or water readings for this pin.").waitFor();
   assert.equal(await page.locator(".leaflet-popup").count(), 0);
   await panel.getByRole("button", { name: "Remove This Custom Sensor" }).click();
   await panel.waitFor({ state: "detached" });

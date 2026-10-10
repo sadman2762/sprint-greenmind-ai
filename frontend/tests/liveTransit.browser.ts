@@ -37,6 +37,26 @@ test('live vehicles: truthful source, positions, mode icons, snapshot replacemen
     await panel.getByText('1 recent · 1 old / unverified').waitFor();
     await panel.getByText('BKK feed · Budapest and regional services. DKV coverage is not confirmed.').waitFor();
     assert.equal(await page.locator('.live-vehicle-marker').count(), 2);
+    // The screenshot regression: transport and inspector must not sit under the toolbar.
+    await page.getByRole('button', { name: 'Connections', exact: true }).click();
+    const inspector = page.getByRole('complementary', { name: 'Map feature details' });
+    await inspector.waitFor();
+    const toolbar = page.getByRole('toolbar', { name: 'Map controls' });
+    const toolbarBounds = await toolbar.boundingBox();
+    const transportBounds = await panel.boundingBox();
+    const inspectorBounds = await inspector.boundingBox();
+    assert.ok(toolbarBounds && transportBounds && inspectorBounds);
+    assert.ok(toolbarBounds.y + toolbarBounds.height <= transportBounds.y, 'Transport must sit below the toolbar');
+    assert.ok(toolbarBounds.y + toolbarBounds.height <= inspectorBounds.y, 'Inspector must sit below the toolbar');
+    for (const name of ['Live transport', 'Layers', 'Add sensor']) {
+      assert.ok(await toolbar.getByRole('button', { name, exact: true }).evaluate(el => {
+        const box = el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      }), `${name} must remain clickable`);
+    }
+    await page.screenshot({ path: '/private/tmp/greenmind-panels-fixed.png', fullPage: true });
+    await page.getByRole('button', { name: 'Close location details', exact: true }).click();
+
     await page.locator('.live-vehicle-marker[title="Route 10 · TEST-1"]').click();
     await page.getByText('Speed: 0 km/h', { exact: true }).waitFor();
     const before = await page.locator('.live-vehicle-marker[title="Route 10 · TEST-1"]').getAttribute('style');
